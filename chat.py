@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import io
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -16,6 +17,28 @@ def get_env_var(name: str, default: str = None, required: bool = False) -> str:
 
 def str_to_bool(value: str) -> bool:
     return value.lower() in ('true', '1', 'yes', 'on', 't', 'y')
+
+def read_multiline_input(prompt: str) -> str:
+    print(prompt, end="", flush=True)
+    lines = []
+    empty_line_count = 0
+    
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            break
+        
+        if line.strip() == "":
+            empty_line_count += 1
+            if empty_line_count >= 3:
+                break
+            lines.append("")
+        else:
+            empty_line_count = 0
+            lines.append(line)
+    
+    return "\n".join(lines).rstrip()
 
 def main():
     api_url = get_env_var("API_URL", "https://api.openai.com/v1")
@@ -41,23 +64,26 @@ def main():
     print(f"思考模式: {'开启' if think_mode else '关闭'}")
     print(f"API: {api_url}")
     print("-" * 50)
+    print("提示: 支持多行输入，连续按 3 次回车结束输入")
     print("命令: /think on/off - 切换思考模式")
     print("      /clear - 清空对话历史")
     print("      quit/exit - 退出")
     
     try:
         while True:
-            user_input = input("\nYou: ").strip()
+            user_input = read_multiline_input("\nYou: ").rstrip('\n')
             
-            if not user_input:
+            if not user_input.strip():
                 continue
             
-            if user_input.lower() in ['quit', 'exit', 'q']:
+            first_line = user_input.split('\n')[0].strip()
+            
+            if first_line.lower() in ['quit', 'exit', 'q']:
                 print("再见！")
                 break
             
-            if user_input.lower().startswith('/think'):
-                parts = user_input.split()
+            if first_line.lower().startswith('/think'):
+                parts = first_line.split()
                 if len(parts) >= 2:
                     if parts[1].lower() in ['on', '1', 'true', 'yes']:
                         think_mode = True
@@ -70,7 +96,7 @@ def main():
                     print("用法: /think on  或  /think off")
                 continue
             
-            if user_input.lower() == '/clear':
+            if first_line.lower() == '/clear':
                 messages = []
                 total_tokens = 0
                 print("对话历史已清空")
