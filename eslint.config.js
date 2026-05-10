@@ -18,4 +18,23 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    files: ['**/*.test.{js,jsx}', 'src/test/**'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        vitest: true,
+        vi: true,
+        describe: true,
+        it: true,
+        expect: true,
+        beforeEach: true,
+        afterEach: true,
+        beforeAll: true,
+        afterAll: true,
+        test: true,
+        global: true,
+      },
+    },
+  },
 ])
