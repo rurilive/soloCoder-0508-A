@@ -3,6 +3,16 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import './Navbar.css'
 
+const checkPathActive = (items, pathname) => {
+  return items.some(item => {
+    if (item.path === pathname) return true
+    if (item.children) {
+      return checkPathActive(item.children, pathname)
+    }
+    return false
+  })
+}
+
 const menuItems = [
   {
     id: 1,
@@ -48,7 +58,7 @@ const MenuItem = ({ item, isMobile }) => {
 
   const hasChildren = item.children && item.children.length > 0
   const isActive = item.path === location.pathname || 
-    (hasChildren && item.children.some(child => location.pathname.startsWith(child.path || '/')))
+    (hasChildren && checkPathActive(item.children, location.pathname))
 
   if (!hasChildren) {
     return (
@@ -107,7 +117,7 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <NavLink to="/" className="navbar-brand">
+        <NavLink to="/" end className="navbar-brand">
           MyApp
         </NavLink>
 
