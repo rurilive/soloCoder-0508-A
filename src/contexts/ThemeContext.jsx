@@ -1,40 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-
-const ThemeContext = createContext(null)
-
-const THEME_KEY = 'theme'
-const LIGHT_THEME = 'light'
-const DARK_THEME = 'dark'
-
-const getStoredTheme = () => {
-  if (typeof window === 'undefined') return null
-  try {
-    return localStorage.getItem(THEME_KEY)
-  } catch {
-    return null
-  }
-}
-
-const setStoredTheme = (theme) => {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(THEME_KEY, theme)
-  } catch (e) {
-    console.warn('Failed to save theme to localStorage:', e)
-  }
-}
-
-const getSystemTheme = () => {
-  if (typeof window === 'undefined') return LIGHT_THEME
-  return window.matchMedia('(prefers-color-scheme: dark)').matches 
-    ? DARK_THEME 
-    : LIGHT_THEME
-}
-
-const applyThemeToDOM = (theme) => {
-  if (typeof document === 'undefined') return
-  document.documentElement.setAttribute('data-theme', theme)
-}
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { 
+  getStoredTheme, 
+  setStoredTheme, 
+  getSystemTheme, 
+  applyThemeToDOM,
+  LIGHT_THEME,
+  DARK_THEME 
+} from '../utils/themeUtils'
+import { ThemeContext } from '../hooks/useTheme'
 
 export const ThemeProvider = ({ children, initialTheme }) => {
   const [theme, setThemeState] = useState(() => {
@@ -118,12 +91,4 @@ export const ThemeProvider = ({ children, initialTheme }) => {
       {children}
     </ThemeContext.Provider>
   )
-}
-
-export const useTheme = () => {
-  const context = useContext(ThemeContext)
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider')
-  }
-  return context
 }

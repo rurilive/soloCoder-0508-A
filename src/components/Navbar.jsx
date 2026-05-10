@@ -1,216 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { useTheme } from '../contexts/ThemeContext'
+import { useTheme } from '../hooks/useTheme'
+import Menu from './Menu'
+import { menuItems } from '../data/menuData'
 import './Navbar.css'
-
-const checkPathActive = (items, pathname) => {
-  return items.some(item => {
-    if (item.path === pathname) return true
-    if (item.children) {
-      return checkPathActive(item.children, pathname)
-    }
-    return false
-  })
-}
-
-const menuItems = [
-  {
-    id: 1,
-    label: '首页',
-    path: '/',
-  },
-  {
-    id: 2,
-    label: '产品',
-    path: '/products',
-    children: [
-      { id: 21, label: '产品列表', path: '/products/list' },
-      { id: 22, label: '产品详情', path: '/products/detail' },
-      {
-        id: 23,
-        label: '高级功能',
-        children: [
-          { id: 231, label: '功能A', path: '/products/advanced/a' },
-          { id: 232, label: '功能B', path: '/products/advanced/b' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 3,
-    label: '服务',
-    path: '/services',
-    children: [
-      { id: 31, label: '咨询服务', path: '/services/consulting' },
-      { id: 32, label: '技术支持', path: '/services/support' },
-    ],
-  },
-  {
-    id: 4,
-    label: '关于我们',
-    path: '/about',
-  },
-]
-
-const MenuItem = ({ item, isMobile, onNavigate }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef(null)
-  const currentPath = useLocation().pathname
-
-  const hasChildren = item.children && item.children.length > 0
-  const isActive = item.path === currentPath || 
-    (hasChildren && checkPathActive(item.children, currentPath))
-
-  const handleKeyDown = useCallback((e) => {
-    if (!hasChildren) return
-    
-    switch (e.key) {
-      case 'Enter':
-      case ' ':
-        e.preventDefault()
-        setIsOpen(!isOpen)
-        break
-      case 'Escape':
-        e.preventDefault()
-        setIsOpen(false)
-        e.currentTarget.focus()
-        break
-      case 'ArrowDown':
-        if (isOpen) {
-          e.preventDefault()
-          const firstFocusable = dropdownRef.current?.querySelector(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          )
-          firstFocusable?.focus()
-        } else {
-          setIsOpen(true)
-        }
-        break
-      case 'ArrowRight':
-        if (!isMobile && hasChildren) {
-          e.preventDefault()
-          setIsOpen(true)
-        }
-        break
-      case 'ArrowLeft':
-        if (!isMobile && isOpen) {
-          e.preventDefault()
-          setIsOpen(false)
-        }
-        break
-    }
-  }, [hasChildren, isOpen, isMobile])
-
-  useEffect(() => {
-    if (!hasChildren) return
-
-    const handleClickOutside = (e) => {
-      if (!isMobile && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false)
-      }
-    }
-
-    const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [hasChildren, isMobile, isOpen])
-
-  const handleLinkClick = useCallback(() => {
-    if (onNavigate) {
-      onNavigate()
-    }
-  }, [onNavigate])
-
-  if (!hasChildren) {
-    return (
-      <NavLink
-        to={item.path}
-        className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        onClick={handleLinkClick}
-        aria-current={item.path === currentPath ? 'page' : undefined}
-      >
-        {item.label}
-      </NavLink>
-    )
-  }
-
-  return (
-    <div 
-      className="menu-item-dropdown"
-      ref={dropdownRef}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          if (!isMobile) setIsOpen(false)
-        }
-      }}
-    >
-      <button
-        className={`nav-link dropdown-toggle ${isActive ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        onMouseEnter={() => !isMobile && setIsOpen(true)}
-        onMouseLeave={() => !isMobile && setIsOpen(false)}
-        onKeyDown={handleKeyDown}
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        aria-controls={`dropdown-${item.id}`}
-      >
-        {item.label}
-        <span className={`arrow ${isOpen ? 'open' : ''}`} aria-hidden="true">▼</span>
-      </button>
-      <div 
-        id={`dropdown-${item.id}`}
-        className={`dropdown-menu ${isMobile ? 'mobile' : ''} ${isOpen ? 'open' : ''}`}
-        onMouseEnter={() => !isMobile && setIsOpen(true)}
-        onMouseLeave={() => !isMobile && setIsOpen(false)}
-        role="menu"
-        aria-hidden={!isOpen}
-      >
-        {item.children.map((child) => (
-          <div 
-            key={child.id} 
-            className="dropdown-item-wrapper"
-            role="none"
-          >
-            {child.children ? (
-              <MenuItem 
-                item={child} 
-                isMobile={isMobile} 
-                onNavigate={onNavigate}
-              />
-            ) : (
-              <NavLink
-                to={child.path}
-                className={({ isActive }) => `dropdown-item ${isActive ? 'active' : ''}`}
-                onClick={handleLinkClick}
-                role="menuitem"
-                tabIndex={isOpen ? 0 : -1}
-                aria-current={child.path === currentPath ? 'page' : undefined}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault()
-                    setIsOpen(false)
-                  }
-                }}
-              >
-                {child.label}
-              </NavLink>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -305,16 +98,12 @@ const Navbar = () => {
         </NavLink>
 
         <div className="desktop-menu" role="menubar">
-          {menuItems.map((item) => (
-            <div key={item.id} role="none">
-              <MenuItem 
-                key={item.id} 
-                item={item} 
-                isMobile={false}
-                onNavigate={handleNavigate}
-              />
-            </div>
-          ))}
+          <Menu 
+            items={menuItems} 
+            orientation="horizontal"
+            onNavigate={handleNavigate}
+            ariaLabel="主菜单"
+          />
           <button 
             className="theme-toggle" 
             onClick={toggleTheme}
@@ -356,14 +145,12 @@ const Navbar = () => {
           aria-label="移动端导航菜单"
           aria-hidden={!isMenuOpen}
         >
-          {menuItems.map((item) => (
-            <MenuItem 
-              key={item.id} 
-              item={item} 
-              isMobile={true}
-              onNavigate={handleNavigate}
-            />
-          ))}
+          <Menu 
+            items={menuItems} 
+            orientation="mobile"
+            onNavigate={handleNavigate}
+            ariaLabel="移动端菜单"
+          />
         </div>
       </div>
     </nav>
