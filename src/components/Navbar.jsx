@@ -54,18 +54,17 @@ const menuItems = [
 
 const MenuItem = ({ item, isMobile }) => {
   const [isOpen, setIsOpen] = useState(false)
-  const location = useLocation()
+  const currentPath = useLocation().pathname
 
   const hasChildren = item.children && item.children.length > 0
-  const isActive = item.path === location.pathname || 
-    (hasChildren && checkPathActive(item.children, location.pathname))
+  const isActive = item.path === currentPath || 
+    (hasChildren && checkPathActive(item.children, currentPath))
 
   if (!hasChildren) {
     return (
       <NavLink
         to={item.path}
-        end={item.path === '/'}
-        className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        className={`nav-link ${isActive ? 'active' : ''}`}
       >
         {item.label}
       </NavLink>
@@ -96,8 +95,7 @@ const MenuItem = ({ item, isMobile }) => {
               ) : (
                 <NavLink
                   to={child.path}
-                  end={child.path === '/'}
-                  className={({ isActive }) => `dropdown-item ${isActive ? 'active' : ''}`}
+                  className={`dropdown-item ${child.path === currentPath ? 'active' : ''}`}
                 >
                   {child.label}
                 </NavLink>
