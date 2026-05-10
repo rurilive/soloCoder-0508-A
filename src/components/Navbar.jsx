@@ -54,6 +54,7 @@ const MenuItem = ({ item, isMobile }) => {
     return (
       <NavLink
         to={item.path}
+        end={item.path === '/'}
         className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
       >
         {item.label}
@@ -85,6 +86,7 @@ const MenuItem = ({ item, isMobile }) => {
               ) : (
                 <NavLink
                   to={child.path}
+                  end={child.path === '/'}
                   className={({ isActive }) => `dropdown-item ${isActive ? 'active' : ''}`}
                 >
                   {child.label}
