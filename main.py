@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, String, DateTime, func
+from sqlalchemy import create_engine, Column, String, DateTime, func, desc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -20,7 +20,6 @@ Base = declarative_base()
 SHORT_CODE_LENGTH = 6
 CHARACTERS = string.ascii_letters + string.digits
 MAX_SHORT_CODE_ATTEMPTS = 100
-WARNING_THRESHOLD_PERCENT = 90
 
 
 class URLMapping(Base):
@@ -29,6 +28,7 @@ class URLMapping(Base):
     short_code = Column(String, primary_key=True, index=True)
     original_url = Column(String, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    last_accessed_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 Base.metadata.create_all(bind=engine)
@@ -41,6 +41,8 @@ class URLCreateRequest(BaseModel):
 class URLCreateResponse(BaseModel):
     short_code: str
     original_url: str
+    is_reused: bool = False
+    replaced_url: str | None = None
 
 
 TOTAL_SHORT_CODE_POOL = len(CHARACTERS) ** SHORT_CODE_LENGTH
@@ -62,15 +64,21 @@ def get_short_code_stats(db):
     used_count = db.query(func.count(URLMapping.short_code)).scalar()
     available_count = TOTAL_SHORT_CODE_POOL - used_count
     usage_percent = (used_count / TOTAL_SHORT_CODE_POOL) * 100
+    
+    oldest = db.query(URLMapping).order_by(URLMapping.last_accessed_at.asc()).first()
+    newest = db.query(URLMapping).order_by(URLMapping.last_accessed_at.desc()).first()
+    
     return {
         "total_pool": TOTAL_SHORT_CODE_POOL,
         "used_count": used_count,
         "available_count": available_count,
-        "usage_percent": round(usage_percent, 4)
+        "usage_percent": round(usage_percent, 4),
+        "oldest_accessed": oldest.last_accessed_at.isoformat() if oldest else None,
+        "newest_accessed": newest.last_accessed_at.isoformat() if newest else None
     }
 
 
-app = FastAPI(title="URL Shortener Service", version="1.0.0")
+app = FastAPI(title="URL Shortener Service (LRU)", version="1.1.0")
 
 
 @app.get("/")
@@ -78,11 +86,12 @@ def root():
     db = next(get_db())
     stats = get_short_code_stats(db)
     return {
-        "service": "URL Shortener",
+        "service": "URL Shortener with LRU Replacement",
+        "strategy": "When pool is full, replace the least recently used short code",
         "short_code_pool": stats,
         "endpoints": {
-            "POST /shorten": "Create a short URL",
-            "GET /{short_code}": "Redirect to original URL",
+            "POST /shorten": "Create a short URL (uses LRU replacement when pool is full)",
+            "GET /{short_code}": "Redirect to original URL and update access time",
             "GET /stats": "Get short code pool statistics"
         }
     }
@@ -100,16 +109,13 @@ def create_short_url(request: URLCreateRequest):
     
     existing = db.query(URLMapping).filter(URLMapping.original_url == request.url).first()
     if existing:
+        existing.last_accessed_at = datetime.utcnow()
+        db.commit()
         return URLCreateResponse(
             short_code=existing.short_code,
-            original_url=existing.original_url
-        )
-    
-    stats = get_short_code_stats(db)
-    if stats["available_count"] == 0:
-        raise HTTPException(
-            status_code=507,
-            detail=f"Short code pool exhausted. All {stats['total_pool']:,} short codes are in use."
+            original_url=existing.original_url,
+            is_reused=False,
+            replaced_url=None
         )
     
     short_code = None
@@ -119,12 +125,32 @@ def create_short_url(request: URLCreateRequest):
             short_code = candidate
             break
     
+    replaced_url = None
+    is_reused = False
+    
     if short_code is None:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Failed to generate unique short code after {MAX_SHORT_CODE_ATTEMPTS} attempts. "
-                   f"Pool usage: {stats['usage_percent']}%. "
-                   f"Available: {stats['available_count']:,}"
+        lru_record = db.query(URLMapping).order_by(URLMapping.last_accessed_at.asc()).first()
+        
+        if lru_record is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Unexpected error: No records found in database"
+            )
+        
+        replaced_url = lru_record.original_url
+        short_code = lru_record.short_code
+        is_reused = True
+        
+        lru_record.original_url = request.url
+        lru_record.last_accessed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(lru_record)
+        
+        return URLCreateResponse(
+            short_code=short_code,
+            original_url=request.url,
+            is_reused=True,
+            replaced_url=replaced_url
         )
     
     url_mapping = URLMapping(
@@ -136,8 +162,10 @@ def create_short_url(request: URLCreateRequest):
     db.refresh(url_mapping)
     
     return URLCreateResponse(
-        short_code=url_mapping.short_code,
-        original_url=url_mapping.original_url
+        short_code=short_code,
+        original_url=request.url,
+        is_reused=False,
+        replaced_url=None
     )
 
 
@@ -149,6 +177,9 @@ def redirect_to_original(short_code: str):
     
     if not url_mapping:
         raise HTTPException(status_code=404, detail="Short code not found")
+    
+    url_mapping.last_accessed_at = datetime.utcnow()
+    db.commit()
     
     return RedirectResponse(url=url_mapping.original_url, status_code=302)
 
