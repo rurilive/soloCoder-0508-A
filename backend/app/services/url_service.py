@@ -37,6 +37,7 @@ def get_url_mapping(db, short_code: str):
 
 def update_access_time(db, url_mapping):
     url_mapping.last_accessed_at = datetime.utcnow()
+    url_mapping.access_count += 1
     db.commit()
     db.refresh(url_mapping)
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import './Home.css'
 
 const Home = () => {
@@ -184,6 +185,10 @@ const Home = () => {
             <li>当短码池满时，会自动替换最少使用的短码（LRU 策略）</li>
             <li>每次访问短链接会更新该链接的访问时间</li>
           </ul>
+        </div>
+        
+        <div className="admin-link-section">
+          <Link to="/admin/login" className="admin-link">管理员后台</Link>
         </div>
       </div>
     </div>
