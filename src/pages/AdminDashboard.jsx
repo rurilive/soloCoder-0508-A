@@ -10,6 +10,7 @@ const statusMap = {
 }
 
 const AdminDashboard = ({ token, onLogout }) => {
+  const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [urls, setUrls] = useState([])
   const [total, setTotal] = useState(0)
@@ -20,18 +21,13 @@ const AdminDashboard = ({ token, onLogout }) => {
   const [loading, setLoading] = useState(false)
   const [selectedUrl, setSelectedUrl] = useState(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
-  const [showAIReviewModal, setShowAIReviewModal] = useState(false)
   const [reviewStatus, setReviewStatus] = useState('approved')
   const [reviewComment, setReviewComment] = useState('')
-  const [aiConfig, setAIConfig] = useState({
-    base_url: '',
-    api_key: '',
-    model: 'gpt-3.5-turbo'
-  })
-  const [aiReviewing, setAIReviewing] = useState(false)
+  const [selectedShortCodes, setSelectedShortCodes] = useState([])
+  const [batchReviewing, setBatchReviewing] = useState(false)
+  const [aiConfigured, setAiConfigured] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const navigate = useNavigate()
 
   const fetchStats = async () => {
     try {
@@ -79,15 +75,43 @@ const AdminDashboard = ({ token, onLogout }) => {
     }
   }
 
+  const checkAIConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/ai-config', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      setAiConfigured(response.ok)
+    } catch (err) {
+      setAiConfigured(false)
+    }
+  }
+
   useEffect(() => {
     fetchStats()
     fetchUrls()
+    checkAIConfig()
   }, [page, pageSize, filterStatus])
 
   const handleSearch = (e) => {
     e.preventDefault()
     setPage(1)
     fetchUrls()
+  }
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedShortCodes(urls.map(u => u.short_code))
+    } else {
+      setSelectedShortCodes([])
+    }
+  }
+
+  const handleSelectOne = (shortCode) => {
+    if (selectedShortCodes.includes(shortCode)) {
+      setSelectedShortCodes(selectedShortCodes.filter(s => s !== shortCode))
+    } else {
+      setSelectedShortCodes([...selectedShortCodes, shortCode])
+    }
   }
 
   const handleManualReview = async () => {
@@ -121,37 +145,86 @@ const AdminDashboard = ({ token, onLogout }) => {
     }
   }
 
-  const handleAIReview = async () => {
+  const handleBatchAIReview = async () => {
+    if (selectedShortCodes.length === 0) {
+      setError('请选择要审核的短码')
+      return
+    }
+    if (!aiConfigured) {
+      setError('请先在AI设置页面配置AI接口')
+      return
+    }
+    
     setError('')
-    setAIReviewing(true)
+    setBatchReviewing(true)
     try {
-      const response = await fetch('/api/admin/urls/ai-review', {
+      const response = await fetch('/api/admin/urls/batch-ai-review', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          short_code: selectedUrl.short_code,
-          ...aiConfig
+          short_codes: selectedShortCodes
         })
       })
       
       if (response.ok) {
         const data = await response.json()
-        setMessage(`AI审核完成: ${statusMap[data.status]?.label || data.status}`)
-        setShowAIReviewModal(false)
+        setMessage(`批量AI审核完成：成功 ${data.success} 个，失败 ${data.failed} 个`)
+        setSelectedShortCodes([])
         fetchStats()
         fetchUrls()
         setTimeout(() => setMessage(''), 5000)
       } else {
         const data = await response.json()
-        setError(data.detail || 'AI审核失败')
+        setError(data.detail || '批量审核失败')
       }
     } catch (err) {
-      setError('AI审核失败: ' + err.message)
+      setError('批量审核失败: ' + err.message)
     } finally {
-      setAIReviewing(false)
+      setBatchReviewing(false)
+    }
+  }
+
+  const handleBatchManualReview = async () => {
+    if (selectedShortCodes.length === 0) {
+      setError('请选择要审核的短码')
+      return
+    }
+    
+    setError('')
+    setBatchReviewing(true)
+    try {
+      const response = await fetch('/api/admin/urls/batch-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          short_codes: selectedShortCodes,
+          status: reviewStatus,
+          comment: reviewComment
+        })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setMessage(`批量审核完成：成功 ${data.success} 个，失败 ${data.failed} 个`)
+        setSelectedShortCodes([])
+        setShowReviewModal(false)
+        fetchStats()
+        fetchUrls()
+        setTimeout(() => setMessage(''), 5000)
+      } else {
+        const data = await response.json()
+        setError(data.detail || '批量审核失败')
+      }
+    } catch (err) {
+      setError('批量审核失败: ' + err.message)
+    } finally {
+      setBatchReviewing(false)
     }
   }
 
@@ -162,12 +235,8 @@ const AdminDashboard = ({ token, onLogout }) => {
     setShowReviewModal(true)
   }
 
-  const openAIReviewModal = (url) => {
-    setSelectedUrl(url)
-    setShowAIReviewModal(true)
-  }
-
   const totalPages = Math.ceil(total / pageSize)
+  const allSelected = urls.length > 0 && selectedShortCodes.length === urls.length
 
   return (
     <div className="admin-container">
@@ -175,6 +244,12 @@ const AdminDashboard = ({ token, onLogout }) => {
         <div className="header-content">
           <h1 className="admin-title">管理员后台</h1>
           <div className="header-actions">
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => navigate('/admin/ai-settings')}
+            >
+              ⚙️ AI 设置
+            </button>
             <button className="btn btn-secondary" onClick={onLogout}>退出登录</button>
           </div>
         </div>
@@ -266,10 +341,47 @@ const AdminDashboard = ({ token, onLogout }) => {
           </div>
         </div>
 
+        {selectedShortCodes.length > 0 && (
+          <div className="batch-actions">
+            <span>已选择 {selectedShortCodes.length} 项</span>
+            <button 
+              className="btn btn-primary"
+              onClick={handleBatchAIReview}
+              disabled={batchReviewing || !aiConfigured}
+            >
+              {batchReviewing ? 'AI审核中...' : '批量AI审核'}
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => {
+                setReviewStatus('approved')
+                setReviewComment('')
+                setSelectedUrl({ short_code: 'batch' })
+                setShowReviewModal(true)
+              }}
+            >
+              批量人工审核
+            </button>
+            <button 
+              className="btn btn-secondary"
+              onClick={() => setSelectedShortCodes([])}
+            >
+              取消选择
+            </button>
+          </div>
+        )}
+
         <div className="table-container">
           <table className="url-table">
             <thead>
               <tr>
+                <th style={{ width: '40px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={allSelected}
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th>短码</th>
                 <th>原始URL</th>
                 <th>访问次数</th>
@@ -282,15 +394,22 @@ const AdminDashboard = ({ token, onLogout }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="loading-cell">加载中...</td>
+                  <td colSpan="8" className="loading-cell">加载中...</td>
                 </tr>
               ) : urls.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-cell">暂无数据</td>
+                  <td colSpan="8" className="empty-cell">暂无数据</td>
                 </tr>
               ) : (
                 urls.map((url) => (
                   <tr key={url.short_code}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedShortCodes.includes(url.short_code)}
+                        onChange={() => handleSelectOne(url.short_code)}
+                      />
+                    </td>
                     <td>
                       <code className="short-code">{url.short_code}</code>
                     </td>
@@ -320,12 +439,6 @@ const AdminDashboard = ({ token, onLogout }) => {
                         onClick={() => openReviewModal(url)}
                       >
                         人工审核
-                      </button>
-                      <button 
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => openAIReviewModal(url)}
-                      >
-                        AI审核
                       </button>
                     </td>
                   </tr>
@@ -360,25 +473,33 @@ const AdminDashboard = ({ token, onLogout }) => {
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2>人工审核</h2>
+              <h2>{selectedUrl.short_code === 'batch' ? '批量人工审核' : '人工审核'}</h2>
               <button className="close-btn" onClick={() => setShowReviewModal(false)}>×</button>
             </div>
             <div className="modal-body">
-              <div className="review-info">
-                <p><strong>短码:</strong> <code>{selectedUrl.short_code}</code></p>
-                <p><strong>URL:</strong> <a href={selectedUrl.original_url} target="_blank" rel="noopener noreferrer">{selectedUrl.original_url}</a></p>
-                <p><strong>当前状态:</strong> 
-                  <span 
-                    className="status-badge"
-                    style={{ backgroundColor: statusMap[selectedUrl.review_status]?.color || '#6b7280' }}
-                  >
-                    {statusMap[selectedUrl.review_status]?.label || selectedUrl.review_status}
-                  </span>
-                </p>
-                {selectedUrl.review_comment && (
-                  <p><strong>原有审核意见:</strong> {selectedUrl.review_comment}</p>
-                )}
-              </div>
+              {selectedUrl.short_code !== 'batch' && (
+                <div className="review-info">
+                  <p><strong>短码:</strong> <code>{selectedUrl.short_code}</code></p>
+                  <p><strong>URL:</strong> <a href={selectedUrl.original_url} target="_blank" rel="noopener noreferrer">{selectedUrl.original_url}</a></p>
+                  <p><strong>当前状态:</strong> 
+                    <span 
+                      className="status-badge"
+                      style={{ backgroundColor: statusMap[selectedUrl.review_status]?.color || '#6b7280' }}
+                    >
+                      {statusMap[selectedUrl.review_status]?.label || selectedUrl.review_status}
+                    </span>
+                  </p>
+                  {selectedUrl.review_comment && (
+                    <p><strong>原有审核意见:</strong> {selectedUrl.review_comment}</p>
+                  )}
+                </div>
+              )}
+              
+              {selectedUrl.short_code === 'batch' && (
+                <div className="review-info">
+                  <p><strong>批量审核数量:</strong> {selectedShortCodes.length}</p>
+                </div>
+              )}
               
               <div className="form-group">
                 <label>审核状态</label>
@@ -407,77 +528,17 @@ const AdminDashboard = ({ token, onLogout }) => {
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowReviewModal(false)}>取消</button>
-              <button className="btn btn-primary" onClick={handleManualReview}>确认审核</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAIReviewModal && selectedUrl && (
-        <div className="modal-overlay">
-          <div className="modal modal-large">
-            <div className="modal-header">
-              <h2>AI审核</h2>
-              <button className="close-btn" onClick={() => setShowAIReviewModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="review-info">
-                <p><strong>短码:</strong> <code>{selectedUrl.short_code}</code></p>
-                <p><strong>URL:</strong> <a href={selectedUrl.original_url} target="_blank" rel="noopener noreferrer">{selectedUrl.original_url}</a></p>
-              </div>
-              
-              <div className="ai-config-section">
-                <h3>AI接口配置</h3>
-                <div className="form-group">
-                  <label>API Base URL</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={aiConfig.base_url}
-                    onChange={(e) => setAIConfig(c => ({ ...c, base_url: e.target.value }))}
-                    placeholder="例如: https://api.openai.com"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>API Key</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    value={aiConfig.api_key}
-                    onChange={(e) => setAIConfig(c => ({ ...c, api_key: e.target.value }))}
-                    placeholder="请输入API密钥"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Model</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={aiConfig.model}
-                    onChange={(e) => setAIConfig(c => ({ ...c, model: e.target.value }))}
-                    placeholder="例如: gpt-3.5-turbo"
-                  />
-                </div>
-              </div>
-              
-              <div className="tips-section">
-                <h4>提示:</h4>
-                <ul>
-                  <li>支持 OpenAI 兼容的接口格式</li>
-                  <li>API密钥仅在当前审核请求中使用，不会被存储</li>
-                  <li>支持主流AI服务（如OpenAI、Azure OpenAI等）</li>
-                </ul>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowAIReviewModal(false)}>取消</button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleAIReview}
-                disabled={aiReviewing || !aiConfig.base_url || !aiConfig.api_key || !aiConfig.model}
-              >
-                {aiReviewing ? 'AI审核中...' : '开始AI审核'}
-              </button>
+              {selectedUrl.short_code === 'batch' ? (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleBatchManualReview}
+                  disabled={batchReviewing}
+                >
+                  {batchReviewing ? '审核中...' : '确认批量审核'}
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={handleManualReview}>确认审核</button>
+              )}
             </div>
           </div>
         </div>

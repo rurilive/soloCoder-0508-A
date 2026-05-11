@@ -43,3 +43,22 @@ class AIReviewRequest(BaseModel):
 class AIReviewResponse(BaseModel):
     status: str
     comment: str
+
+
+class BatchManualReviewRequest(BaseModel):
+    short_codes: list[str]
+    status: str
+    comment: Optional[str] = None
+
+
+class BatchManualReviewResult(BaseModel):
+    short_code: str
+    success: bool
+    error: Optional[str] = None
+
+
+class BatchManualReviewResponse(BaseModel):
+    total: int
+    success: int
+    failed: int
+    results: list[BatchManualReviewResult]

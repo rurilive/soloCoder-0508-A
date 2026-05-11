@@ -332,6 +332,52 @@
   padding: 24px;
 }
 
+.batch-actions {
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-actions span {
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.settings-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.settings-card h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.settings-description {
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+.settings-form .form-group {
+  margin-bottom: 20px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
 .modal-footer {
   padding: 20px 24px;
   border-top: 1px solid #e5e7eb;
