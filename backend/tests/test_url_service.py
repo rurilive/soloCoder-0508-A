@@ -9,6 +9,7 @@ from backend.app.services.url_service import (
     update_access_time,
     create_short_url,
 )
+from backend.app.utils.short_code import generate_short_code
 from backend.app.config.settings import MAX_SHORT_CODE_ATTEMPTS
 
 
@@ -165,7 +166,182 @@ class TestLRUReplacement:
         
         new_url = "https://replaced.com"
         response = create_short_url(test_db_session, new_url)
-        
+
         assert response.is_reused is True
         assert response.short_code == "OLDEST"
         assert response.replaced_url == "https://oldest.com"
+
+
+class TestProgressiveLRUStrategy:
+    def test_initial_random_attempts_finds_free_code(self, test_db_session, monkeypatch):
+        from backend.app.services import url_service as url_service_module
+        from backend.app.config.settings import INITIAL_RANDOM_ATTEMPTS
+
+        attempts = []
+
+        def mock_generate():
+            attempt = generate_short_code()
+            attempts.append(attempt)
+            return attempt
+
+        monkeypatch.setattr(url_service_module, 'generate_short_code', mock_generate)
+
+        new_url = "https://progressive-free.com"
+        response = create_short_url(test_db_session, new_url)
+
+        assert response.is_reused is False
+        assert len(attempts) >= 1
+        assert len(attempts) <= INITIAL_RANDOM_ATTEMPTS
+
+    def test_early_trigger_after_initial_phase(self, test_db_session, monkeypatch):
+        from datetime import datetime, timedelta
+        from backend.app.services import url_service as url_service_module
+        from backend.app.config.settings import INITIAL_RANDOM_ATTEMPTS
+
+        oldest_mapping = URLMapping(
+            short_code="OLDEST01",
+            original_url="https://oldest-progressive.com"
+        )
+        oldest_mapping.last_accessed_at = datetime.utcnow() - timedelta(days=100)
+        test_db_session.add(oldest_mapping)
+
+        for i in range(10):
+            mapping = URLMapping(
+                short_code=f"PROG{i:02d}",
+                original_url=f"https://progressive-{i}.com"
+            )
+            mapping.last_accessed_at = datetime.utcnow() - timedelta(days=50)
+            test_db_session.add(mapping)
+        test_db_session.commit()
+
+        attempt_count = [0]
+        mock_codes = ["PROG00", "PROG01", "PROG02", "PROG03", "PROG04"]
+
+        def mock_generate():
+            idx = attempt_count[0]
+            attempt_count[0] += 1
+            return mock_codes[idx % len(mock_codes)]
+
+        monkeypatch.setattr(url_service_module, 'generate_short_code', mock_generate)
+
+        new_url = "https://new-progressive.com"
+        response = create_short_url(test_db_session, new_url)
+
+        assert response.is_reused is True
+        assert response.short_code == "OLDEST01"
+        assert response.replaced_url == "https://oldest-progressive.com"
+        assert attempt_count[0] == INITIAL_RANDOM_ATTEMPTS
+
+    def test_all_hits_in_initial_phase_triggers_lru(self, test_db_session, monkeypatch):
+        from datetime import datetime, timedelta
+        from backend.app.services import url_service as url_service_module
+        from backend.app.config.settings import INITIAL_RANDOM_ATTEMPTS
+
+        oldest_mapping = URLMapping(
+            short_code="LRUINIT",
+            original_url="https://oldest-initial.com"
+        )
+        oldest_mapping.last_accessed_at = datetime.utcnow() - timedelta(days=100)
+        test_db_session.add(oldest_mapping)
+
+        mapping1 = URLMapping(short_code="HIT1", original_url="https://hit1.com")
+        mapping2 = URLMapping(short_code="HIT2", original_url="https://hit2.com")
+        mapping3 = URLMapping(short_code="HIT3", original_url="https://hit3.com")
+        mapping1.last_accessed_at = datetime.utcnow() - timedelta(days=50)
+        mapping2.last_accessed_at = datetime.utcnow() - timedelta(days=40)
+        mapping3.last_accessed_at = datetime.utcnow() - timedelta(days=30)
+        test_db_session.add_all([mapping1, mapping2, mapping3])
+        test_db_session.commit()
+
+        attempt_count = [0]
+        mock_codes = ["HIT1", "HIT2", "HIT3"]
+
+        def mock_generate():
+            idx = attempt_count[0]
+            attempt_count[0] += 1
+            return mock_codes[idx % len(mock_codes)]
+
+        monkeypatch.setattr(url_service_module, 'generate_short_code', mock_generate)
+
+        new_url = "https://test-initial-lru.com"
+        response = create_short_url(test_db_session, new_url)
+
+        assert response.is_reused is True
+        assert attempt_count[0] == INITIAL_RANDOM_ATTEMPTS
+
+    def test_very_high_usage_triggers_early_lru(self, test_db_session, monkeypatch):
+        from datetime import datetime, timedelta
+        from backend.app.services import url_service as url_service_module
+        from backend.app.config.settings import MAX_SHORT_CODE_ATTEMPTS
+
+        oldest_mapping = URLMapping(
+            short_code="FIRST01",
+            original_url="https://first-old.com"
+        )
+        oldest_mapping.last_accessed_at = datetime.utcnow() - timedelta(days=100)
+        test_db_session.add(oldest_mapping)
+
+        for i in range(20):
+            mapping = URLMapping(
+                short_code=f"HI{i:02d}",
+                original_url=f"https://high-{i}.com"
+            )
+            mapping.last_accessed_at = datetime.utcnow() - timedelta(days=50)
+            test_db_session.add(mapping)
+        test_db_session.commit()
+
+        attempt_count = [0]
+
+        def mock_generate():
+            attempt_count[0] += 1
+            return f"HI{(attempt_count[0] - 1) % 20:02d}"
+
+        monkeypatch.setattr(url_service_module, 'generate_short_code', mock_generate)
+
+        new_url = "https://high-usage-new.com"
+        response = create_short_url(test_db_session, new_url)
+
+        assert response.is_reused is True
+        assert attempt_count[0] < MAX_SHORT_CODE_ATTEMPTS
+        assert response.short_code == "FIRST01"
+
+    def test_get_lru_record_helper_function(self, test_db_session):
+        from datetime import datetime, timedelta
+        from backend.app.services.url_service import get_lru_record
+
+        times = [
+            ("NEW01", timedelta(hours=1)),
+            ("MID01", timedelta(days=5)),
+            ("OLD01", timedelta(days=100)),
+        ]
+
+        for name, offset in times:
+            mapping = URLMapping(short_code=name, original_url=f"https://{name}.com")
+            mapping.last_accessed_at = datetime.utcnow() - offset
+            test_db_session.add(mapping)
+        test_db_session.commit()
+
+        lru = get_lru_record(test_db_session)
+        assert lru is not None
+        assert lru.short_code == "OLD01"
+
+    def test_perform_lru_replacement_updates_record(self, test_db_session):
+        from datetime import datetime, timedelta
+        from backend.app.services.url_service import perform_lru_replacement
+
+        old_mapping = URLMapping(short_code="REPL01", original_url="https://old-url.com")
+        old_mapping.last_accessed_at = datetime.utcnow() - timedelta(days=100)
+        test_db_session.add(old_mapping)
+        test_db_session.commit()
+
+        old_time = old_mapping.last_accessed_at
+        response = perform_lru_replacement(test_db_session, "https://brand-new-url.com")
+
+        assert response.is_reused is True
+        assert response.short_code == "REPL01"
+        assert response.replaced_url == "https://old-url.com"
+        assert response.original_url == "https://brand-new-url.com"
+
+        test_db_session.refresh(old_mapping)
+        assert old_mapping.original_url == "https://brand-new-url.com"
+        assert old_mapping.last_accessed_at > old_time
