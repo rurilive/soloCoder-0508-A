@@ -23,7 +23,7 @@ from ..utils.auth import (
     get_current_admin
 )
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.post("/login", response_model=AdminLoginResponse)
 async def admin_login(request: AdminLoginRequest):
