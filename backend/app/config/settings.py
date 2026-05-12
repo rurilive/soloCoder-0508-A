@@ -26,16 +26,16 @@ JWT_EXPIRE_MINUTES = 60
 
 def setup_logging():
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler('app.log')
+            logging.FileHandler('app.log', encoding='utf-8')
         ]
     )
     
     httpx_logger = logging.getLogger("httpx")
-    httpx_logger.setLevel(logging.WARNING)
+    httpx_logger.setLevel(logging.DEBUG)
 
 
 def get_logger(name: str):

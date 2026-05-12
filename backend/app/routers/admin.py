@@ -1,4 +1,5 @@
 from datetime import datetime
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -130,47 +131,71 @@ async def ai_review_url(
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):
+    logger.info("=" * 80)
+    logger.info("=== ADMIN AI REVIEW REQUEST STARTED ===")
     logger.info(f"AI review requested - admin: {current_admin.get('sub')}, short_code: {request.short_code}")
+    logger.debug(f"Full request - base_url: {request.base_url}, model: {request.model}")
     
-    url_mapping = db.query(URLMapping).filter(URLMapping.short_code == request.short_code).first()
-    
-    if not url_mapping:
-        logger.warning(f"AI review failed: short code not found - {request.short_code}")
-        raise HTTPException(status_code=404, detail="短码不存在")
-    
-    logger.info(f"URL to review: {url_mapping.original_url}")
-    
-    ai_config = AIConfig(
-        base_url=request.base_url,
-        api_key=request.api_key,
-        model=request.model
-    )
-    
-    logger.info(f"Calling AI service with model: {request.model}")
-    result = await review_url_with_ai(url_mapping.original_url, ai_config)
-    
-    logger.info(f"AI review result - status: {result.status}")
-    logger.debug(f"AI review comment: {result.comment[:200]}...")
-    
-    service_error_keywords = [
-        "调用失败", "请求超时", "过程中出错", "解析失败", "HTTP", 
-        "连接失败", "重定向", "认证失败", "端点不存在", "请求过于频繁",
-        "内部错误", "网关错误", "服务不可用", "无效的JSON响应",
-        "缺少或无效的'choices'字段", "缺少'message.content'字段",
-        "配置错误", "发生未知错误"
-    ]
-    if result.status == "needs_manual_review" and any(k in result.comment for k in service_error_keywords):
-        logger.error(f"AI service error detected: {result.comment}")
-        raise HTTPException(status_code=500, detail=result.comment)
-    
-    url_mapping.review_status = result.status
-    url_mapping.review_comment = result.comment
-    url_mapping.reviewed_at = datetime.utcnow()
-    db.commit()
-    db.refresh(url_mapping)
-    
-    logger.info(f"AI review completed successfully - status: {result.status}")
-    return result
+    try:
+        url_mapping = db.query(URLMapping).filter(URLMapping.short_code == request.short_code).first()
+        
+        if not url_mapping:
+            logger.warning(f"AI review failed: short code not found - {request.short_code}")
+            raise HTTPException(status_code=404, detail="短码不存在")
+        
+        logger.info(f"URL to review: {url_mapping.original_url}")
+        logger.debug(f"URL mapping details - original_url: {url_mapping.original_url}")
+        
+        ai_config = AIConfig(
+            base_url=request.base_url,
+            api_key=request.api_key,
+            model=request.model
+        )
+        
+        logger.info(f"Calling AI service with model: {request.model}")
+        logger.debug(f"AI config - base_url: {request.base_url}, model: {request.model}")
+        
+        result = await review_url_with_ai(url_mapping.original_url, ai_config)
+        
+        logger.info(f"AI review result received - status: {result.status}")
+        logger.debug(f"AI review full comment: {result.comment}")
+        
+        service_error_keywords = [
+            "调用失败", "请求超时", "过程中出错", "解析失败", "HTTP", 
+            "连接失败", "重定向", "认证失败", "端点不存在", "请求过于频繁",
+            "内部错误", "网关错误", "服务不可用", "无效的JSON响应",
+            "缺少或无效的'choices'字段", "缺少'message.content'字段",
+            "配置错误", "发生未知错误"
+        ]
+        is_service_error = result.status == "needs_manual_review" and any(k in result.comment for k in service_error_keywords)
+        
+        logger.debug(f"Service error check - is_needs_manual: {result.status == 'needs_manual_review'}, is_service_error: {is_service_error}")
+        
+        if is_service_error:
+            logger.error("=" * 80)
+            logger.error("=== AI SERVICE ERROR DETECTED ===")
+            logger.error(f"Error comment: {result.comment}")
+            raise HTTPException(status_code=500, detail=result.comment)
+        
+        url_mapping.review_status = result.status
+        url_mapping.review_comment = result.comment
+        url_mapping.reviewed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(url_mapping)
+        
+        logger.info(f"AI review completed successfully - final status: {result.status}")
+        logger.info("=" * 80)
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("=" * 80)
+        logger.error("=== UNEXPECTED ERROR IN AI REVIEW ENDPOINT ===")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"审核过程中发生错误: {str(e)}")
 
 @router.get("/stats")
 async def get_admin_stats(

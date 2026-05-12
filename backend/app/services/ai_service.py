@@ -1,5 +1,6 @@
 import httpx
 import json
+import traceback
 from typing import Optional, Dict, Any
 from pydantic import BaseModel
 
@@ -64,15 +65,20 @@ def _build_request_payload(model: str, prompt: str) -> Dict[str, Any]:
 
 
 def _parse_ai_response(content: str) -> ReviewResult:
+    logger.debug("=" * 80)
+    logger.debug("=== STARTING AI RESPONSE PARSING ===")
     logger.debug(f"Parsing AI response content length: {len(content)} characters")
-    logger.debug(f"Raw response content preview: {repr(content[:300])}")
+    logger.debug(f"Full raw response content: {repr(content)}")
     
     try:
         json_start = content.find('{')
         json_end = content.rfind('}') + 1
+        logger.debug(f"JSON boundaries found: start={json_start}, end={json_end}")
         
         if json_start < 0 or json_end <= json_start:
-            logger.warning(f"No valid JSON object found in AI response. Content preview: {content[:200]}")
+            logger.warning("=" * 80)
+            logger.warning("=== PARSING FAILED: NO VALID JSON ===")
+            logger.warning(f"No valid JSON object found in AI response. Content: {content}")
             return ReviewResult(
                 status="needs_manual_review",
                 comment=f"AI返回格式不正确: 未找到有效的JSON对象。原始内容: {content[:200]}"
@@ -94,17 +100,25 @@ def _parse_ai_response(content: str) -> ReviewResult:
                 comment=f"AI返回了无效的审核状态: '{status}'。请检查AI配置或模型是否正确。"
             )
         
-        logger.info(f"AI review completed - Status: {status}, Comment: {comment[:100]}...")
+        logger.info(f"AI review completed successfully - Status: {status}, Comment: {comment}")
+        logger.debug("=" * 80)
         return ReviewResult(status=status, comment=comment)
         
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {str(e)}. Content: {content[:200]}")
+        logger.error("=" * 80)
+        logger.error("=== PARSING FAILED: JSON DECODE ERROR ===")
+        logger.error(f"JSON decode error: {str(e)}")
+        logger.error(f"Content: {content}")
+        logger.error(f"Exception traceback:\n{traceback.format_exc()}")
         return ReviewResult(
             status="needs_manual_review",
             comment=f"AI返回结果解析失败: JSON解析错误 - {str(e)}。原始内容: {content[:200]}"
         )
     except Exception as e:
-        logger.exception(f"Unexpected error parsing AI response: {str(e)}")
+        logger.error("=" * 80)
+        logger.error("=== PARSING FAILED: UNEXPECTED ERROR ===")
+        logger.error(f"Unexpected error parsing AI response: {type(e).__name__} - {str(e)}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
         return ReviewResult(
             status="needs_manual_review",
             comment=f"处理AI响应时发生未知错误: {str(e)}"
@@ -148,14 +162,21 @@ def _handle_http_error(status_code: int, response_text: str = "") -> ReviewResul
 
 
 async def review_url_with_ai(url: str, config: AIConfig) -> ReviewResult:
+    logger.info("=" * 80)
+    logger.info("=== STARTING AI REVIEW PROCESS ===")
     logger.info(f"Starting AI review for URL: {url}")
     logger.info(f"AI Config - base_url: {config.base_url}, model: {config.model}")
+    logger.debug(f"Full AI config - base_url: {config.base_url}, model: {config.model}, api_key_length: {len(config.api_key) if config.api_key else 0}")
     
     if not url:
+        logger.error("=" * 80)
+        logger.error("=== REVIEW FAILED: EMPTY URL ===")
         logger.error("Empty URL provided for review")
         return ReviewResult(status="needs_manual_review", comment="错误: 待审核的URL为空")
     
     if not config.base_url or not config.api_key or not config.model:
+        logger.error("=" * 80)
+        logger.error("=== REVIEW FAILED: INVALID CONFIG ===")
         logger.error(f"Invalid AI config - base_url: {bool(config.base_url)}, api_key: {bool(config.api_key)}, model: {bool(config.model)}")
         return ReviewResult(status="needs_manual_review", comment="错误: AI配置不完整，请检查base_url、api_key和model")
     
@@ -164,11 +185,13 @@ async def review_url_with_ai(url: str, config: AIConfig) -> ReviewResult:
         prompt = _build_prompt(url)
         payload = _build_request_payload(config.model, prompt)
         
-        logger.debug(f"Sending request to: {base_url}/chat/completions")
-        logger.debug(f"Request payload keys: {list(payload.keys())}")
+        logger.info(f"Sending API request to: {base_url}/chat/completions")
+        logger.info(f"Request payload keys: {list(payload.keys())}")
+        logger.debug(f"Full request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
         
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
+                logger.info("Making HTTP POST request to AI service...")
                 response = await client.post(
                     f"{base_url}/chat/completions",
                     headers={
@@ -178,47 +201,71 @@ async def review_url_with_ai(url: str, config: AIConfig) -> ReviewResult:
                     json=payload
                 )
                 logger.info(f"AI service response status: {response.status_code}")
+                logger.debug(f"Response headers: {dict(response.headers)}")
             except httpx.ConnectError as e:
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: CONNECTION ERROR ===")
                 logger.error(f"Connection error when calling AI service: {str(e)}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment=f"AI服务连接失败: 无法连接到 {config.base_url}，请检查网络连接或base_url配置"
                 )
             except httpx.TimeoutException as e:
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: TIMEOUT ===")
                 logger.error(f"Timeout when calling AI service: {str(e)}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment="AI服务请求超时: 服务器响应时间过长，请稍后重试"
                 )
             except httpx.TooManyRedirects as e:
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: TOO MANY REDIRECTS ===")
                 logger.error(f"Too many redirects for AI service: {str(e)}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment="AI服务重定向次数过多: 请检查base_url配置"
                 )
             except httpx.RequestError as e:
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: REQUEST ERROR ===")
                 logger.error(f"Request error from AI service: {type(e).__name__} - {str(e)}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment=f"AI服务请求错误: {type(e).__name__} - {str(e)}"
                 )
             
             if response.status_code != 200:
+                logger.error(f"Non-200 status code received: {response.status_code}")
                 return _handle_http_error(response.status_code, response.text)
             
             try:
+                logger.debug("Attempting to parse response JSON...")
                 result = response.json()
+                logger.info(f"Successfully parsed response JSON")
                 logger.debug(f"AI response JSON keys: {list(result.keys())}")
+                logger.debug(f"Full AI response: {json.dumps(result, ensure_ascii=False, indent=2)}")
             except json.JSONDecodeError as e:
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: JSON PARSE ERROR ===")
                 logger.error(f"Failed to parse AI JSON response: {str(e)}")
-                logger.debug(f"Raw response text: {response.text[:500]}")
+                logger.error(f"Raw response text: {response.text}")
+                logger.error(f"Traceback:\n{traceback.format_exc()}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment=f"AI服务返回无效的JSON响应: HTTP 200但内容无法解析"
                 )
             
             if "choices" not in result or not isinstance(result["choices"], list) or len(result["choices"]) == 0:
-                logger.error(f"Missing or invalid 'choices' field in response. Available keys: {list(result.keys())}")
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: MISSING CHOICES ===")
+                logger.error(f"Missing or invalid 'choices' field in response")
+                logger.error(f"Available keys: {list(result.keys())}")
+                logger.error(f"Full response: {result}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment="AI服务响应格式错误: 缺少或无效的'choices'字段"
@@ -226,30 +273,44 @@ async def review_url_with_ai(url: str, config: AIConfig) -> ReviewResult:
             
             choice = result["choices"][0]
             if "message" not in choice or "content" not in choice["message"]:
-                logger.error(f"Missing message.content in choice. Choice keys: {list(choice.keys())}")
+                logger.error("=" * 80)
+                logger.error("=== REVIEW FAILED: MISSING MESSAGE.CONTENT ===")
+                logger.error(f"Missing message.content in choice")
+                logger.error(f"Choice keys: {list(choice.keys())}")
+                logger.error(f"Full choice: {choice}")
                 return ReviewResult(
                     status="needs_manual_review",
                     comment="AI服务响应格式错误: choices中缺少'message.content'字段"
                 )
             
             content = choice["message"]["content"]
-            logger.info("Successfully received content from AI service, starting parsing...")
+            logger.info(f"Successfully extracted content from AI response, length: {len(content)} chars")
+            logger.info("Starting response parsing...")
             return _parse_ai_response(content)
             
     except httpx.InvalidURL as e:
+        logger.error("=" * 80)
+        logger.error("=== REVIEW FAILED: INVALID URL ===")
         logger.error(f"Invalid URL configuration: {config.base_url}, error: {str(e)}")
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         return ReviewResult(
             status="needs_manual_review",
             comment=f"AI服务配置错误: 无效的URL '{config.base_url}'"
         )
     except ValueError as e:
+        logger.error("=" * 80)
+        logger.error("=== REVIEW FAILED: VALUE ERROR ===")
         logger.error(f"Value error in AI review: {str(e)}")
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         return ReviewResult(
             status="needs_manual_review",
             comment=f"AI服务配置错误: {str(e)}"
         )
     except Exception as e:
-        logger.exception(f"Unexpected error in AI review process: {type(e).__name__} - {str(e)}")
+        logger.error("=" * 80)
+        logger.error("=== REVIEW FAILED: UNEXPECTED ERROR ===")
+        logger.error(f"Unexpected error in AI review process: {type(e).__name__} - {str(e)}")
+        logger.error(f"Full traceback:\n{traceback.format_exc()}")
         return ReviewResult(
             status="needs_manual_review",
             comment=f"AI审核过程中发生未知错误: {type(e).__name__} - {str(e)}"
