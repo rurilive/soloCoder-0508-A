@@ -21,9 +21,106 @@
             padding: 20px;
         }
 
-        .chat-container {
+        .app-container {
             width: 100%;
-            max-width: 800px;
+            max-width: 1200px;
+            display: flex;
+            gap: 20px;
+            height: 85vh;
+            min-height: 500px;
+        }
+
+        .room-sidebar {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .room-sidebar h2 {
+            color: #fff;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .create-room-form {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .create-room-form input {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .create-room-form input:focus {
+            border-color: #00d4ff;
+        }
+
+        .create-room-form button {
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .room-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .room-item {
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .room-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .room-item.active {
+            background: rgba(0, 212, 255, 0.15);
+            border-color: #00d4ff;
+        }
+
+        .room-item-name {
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .room-item-users {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+        }
+
+        .chat-container {
+            flex: 1;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border-radius: 16px;
@@ -31,8 +128,6 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
-            height: 80vh;
-            min-height: 500px;
         }
 
         .chat-header {
@@ -61,6 +156,28 @@
             font-size: 24px;
             font-weight: 600;
             letter-spacing: 1px;
+        }
+
+        .current-room {
+            margin-left: auto;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            background: rgba(0, 212, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chat-messages-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .chat-messages {
@@ -104,6 +221,13 @@
             color: #00d4ff;
             font-weight: 600;
             font-size: 14px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .message-nickname:hover {
+            color: #00ff88;
+            text-decoration: underline;
         }
 
         .message-time {
@@ -120,6 +244,70 @@
             display: inline-block;
             max-width: 80%;
             word-wrap: break-word;
+        }
+
+        .private-message .message-content {
+            background: rgba(255, 193, 7, 0.15);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .private-badge {
+            color: #ffc107;
+            font-size: 11px;
+            padding: 2px 8px;
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .users-sidebar {
+            width: 200px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .users-sidebar h3 {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .user-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .user-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+        }
+
+        .user-name {
+            color: #fff;
+            font-size: 14px;
         }
 
         .chat-input-container {
@@ -209,44 +397,173 @@
         .status-bar.disconnected {
             color: #ff6b6b;
         }
+
+        .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .welcome-modal {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .welcome-modal h2 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .welcome-modal p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .welcome-input {
+            width: 100%;
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 20px;
+        }
+
+        .welcome-input:focus {
+            border-color: #00d4ff;
+        }
+
+        .enter-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .enter-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .room-list::-webkit-scrollbar,
+        .user-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .room-list::-webkit-scrollbar-track,
+        .user-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .room-list::-webkit-scrollbar-thumb,
+        .user-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="status-dot"></div>
-            <h1>实时聊天室</h1>
+    <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-modal">
+            <h2>欢迎来到聊天室</h2>
+            <p>请输入您的昵称开始聊天</p>
+            <input type="text" class="welcome-input" id="welcomeNickname" placeholder="输入昵称..." maxlength="20">
+            <button class="enter-button" id="enterButton">进入聊天室</button>
         </div>
-        <div class="chat-messages" id="chatMessages">
-            {% for message in messages %}
-            <div class="message">
-                <div class="message-header">
-                    <span class="message-nickname">{{ message.nickname }}</span>
-                    <span class="message-time">{{ message.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+    </div>
+
+    <div class="app-container">
+        <div class="room-sidebar">
+            <h2>房间列表</h2>
+            <div class="create-room-form">
+                <input type="text" id="newRoomName" placeholder="新房间名称" maxlength="30">
+                <button id="createRoomBtn">创建</button>
+            </div>
+            <div class="room-list" id="roomList">
+                {% for room in rooms %}
+                <div class="room-item" data-room="{{ room.name }}">
+                    <div class="room-item-name">{{ room.name }}</div>
+                    <div class="room-item-users" id="users-{{ room.name }}">0 人在线</div>
                 </div>
-                <div class="message-content">{{ message.content }}</div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
-        <div class="chat-input-container">
-            <div class="input-group">
-                <input type="text" class="nickname-input" id="nickname" placeholder="昵称" maxlength="20">
-                <input type="text" class="message-input" id="messageInput" placeholder="输入消息..." maxlength="500">
-                <button class="send-button" id="sendButton">发送</button>
+
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="status-dot"></div>
+                <h1>实时聊天室</h1>
+                <div class="current-room" id="currentRoom">未选择房间</div>
             </div>
-            <div class="status-bar" id="statusBar">连接中...</div>
+            <div class="chat-main">
+                <div class="chat-messages-wrapper">
+                    <div class="chat-messages" id="chatMessages">
+                        <div style="color: rgba(255,255,255,0.5); text-align: center; padding: 40px;">
+                            请选择一个房间开始聊天
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <div class="input-group">
+                            <input type="text" class="nickname-input" id="nickname" placeholder="昵称" maxlength="20" readonly>
+                            <input type="text" class="message-input" id="messageInput" placeholder="输入消息... 点击用户名可@对方" maxlength="500" disabled>
+                            <button class="send-button" id="sendButton" disabled>发送</button>
+                        </div>
+                        <div class="status-bar" id="statusBar">请先输入昵称</div>
+                    </div>
+                </div>
+                <div class="users-sidebar">
+                    <h3>在线用户</h3>
+                    <div class="user-list" id="userList">
+                        <div style="color: rgba(255,255,255,0.4); text-align: center; padding: 20px; font-size: 13px;">
+                            请先进入房间
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
-        
+        let ws = null;
+        let currentRoom = null;
+        let currentNickname = null;
+
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const welcomeNickname = document.getElementById('welcomeNickname');
+        const enterButton = document.getElementById('enterButton');
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
         const nicknameInput = document.getElementById('nickname');
         const sendButton = document.getElementById('sendButton');
         const statusBar = document.getElementById('statusBar');
+        const currentRoomEl = document.getElementById('currentRoom');
+        const roomList = document.getElementById('roomList');
+        const userList = document.getElementById('userList');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const newRoomName = document.getElementById('newRoomName');
 
         function scrollToBottom() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -262,13 +579,18 @@
                    String(date.getSeconds()).padStart(2, '0');
         }
 
-        function addMessage(nickname, content, timestamp) {
+        function addMessage(nickname, content, timestamp, isPrivate = false, targetNickname = null) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'message';
+            messageDiv.className = 'message' + (isPrivate ? ' private-message' : '');
+            let privateBadge = '';
+            if (isPrivate) {
+                privateBadge = `<span class="private-badge">私信 @${targetNickname}</span>`;
+            }
             messageDiv.innerHTML = `
                 <div class="message-header">
-                    <span class="message-nickname">${nickname}</span>
+                    <span class="message-nickname" onclick="mentionUser('${nickname}')">${nickname}</span>
                     <span class="message-time">${formatTime(timestamp)}</span>
+                    ${privateBadge}
                 </div>
                 <div class="message-content">${content}</div>
             `;
@@ -276,43 +598,206 @@
             scrollToBottom();
         }
 
-        ws.onopen = function() {
-            statusBar.textContent = '已连接';
-            statusBar.className = 'status-bar connected';
-        };
+        function mentionUser(nickname) {
+            if (nickname === currentNickname) return;
+            messageInput.value = `@${nickname} `;
+            messageInput.focus();
+        }
 
-        ws.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            addMessage(data.nickname, data.content, data.timestamp);
-        };
+        function connectToRoom(room, nickname) {
+            if (ws) {
+                ws.close();
+            }
 
-        ws.onclose = function() {
-            statusBar.textContent = '已断开连接';
-            statusBar.className = 'status-bar disconnected';
-        };
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(nickname)}`);
+
+            ws.onopen = function() {
+                statusBar.textContent = '已连接';
+                statusBar.className = 'status-bar connected';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                loadRoomMessages(room);
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'message') {
+                    addMessage(data.nickname, data.content, data.timestamp);
+                } else if (data.type === 'private_message') {
+                    addMessage(data.nickname, data.content, data.timestamp, true, data.target_nickname);
+                } else if (data.type === 'user_list') {
+                    updateUserList(data.users);
+                }
+            };
+
+            ws.onclose = function() {
+                statusBar.textContent = '已断开连接';
+                statusBar.className = 'status-bar disconnected';
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+            };
+        }
+
+        async function loadRoomMessages(room) {
+            try {
+                const response = await fetch(`/api/rooms/${encodeURIComponent(room)}/messages`);
+                const data = await response.json();
+                chatMessages.innerHTML = '';
+                data.messages.forEach(msg => {
+                    addMessage(msg.nickname, msg.content, msg.timestamp);
+                });
+            } catch (error) {
+                console.error('加载消息失败:', error);
+            }
+        }
+
+        function updateUserList(users) {
+            userList.innerHTML = '';
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.onclick = () => mentionUser(user);
+                userItem.innerHTML = `
+                    <div class="user-dot"></div>
+                    <div class="user-name">${user}</div>
+                `;
+                userList.appendChild(userItem);
+            });
+
+            if (currentRoom) {
+                const userCountEl = document.getElementById(`users-${currentRoom}`);
+                if (userCountEl) {
+                    userCountEl.textContent = `${users.length} 人在线`;
+                }
+            }
+        }
 
         function sendMessage() {
-            const nickname = nicknameInput.value.trim() || 'Anonymous';
             const content = messageInput.value.trim();
             
-            if (content && ws.readyState === WebSocket.OPEN) {
+            if (content && ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
-                    nickname: nickname,
                     content: content
                 }));
                 messageInput.value = '';
             }
         }
 
-        sendButton.addEventListener('click', sendMessage);
+        function selectRoom(roomName) {
+            if (!currentNickname) {
+                alert('请先输入昵称！');
+                return;
+            }
 
+            document.querySelectorAll('.room-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            const roomItem = document.querySelector(`.room-item[data-room="${roomName}"]`);
+            if (roomItem) {
+                roomItem.classList.add('active');
+            }
+
+            currentRoom = roomName;
+            currentRoomEl.textContent = `当前: ${roomName}`;
+            connectToRoom(roomName, currentNickname);
+        }
+
+        async function createRoom() {
+            const roomName = newRoomName.value.trim();
+            if (!roomName) {
+                alert('请输入房间名称！');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: roomName })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    newRoomName.value = '';
+                    await loadRooms();
+                    selectRoom(roomName);
+                } else {
+                    alert(data.error);
+                }
+            } catch (error) {
+                console.error('创建房间失败:', error);
+                alert('创建房间失败');
+            }
+        }
+
+        async function loadRooms() {
+            try {
+                const response = await fetch('/api/rooms');
+                const data = await response.json();
+                roomList.innerHTML = '';
+                data.rooms.forEach(room => {
+                    const roomItem = document.createElement('div');
+                    roomItem.className = 'room-item';
+                    roomItem.dataset.room = room.name;
+                    roomItem.innerHTML = `
+                        <div class="room-item-name">${room.name}</div>
+                        <div class="room-item-users" id="users-${room.name}">0 人在线</div>
+                    `;
+                    roomItem.onclick = () => selectRoom(room.name);
+                    roomList.appendChild(roomItem);
+                });
+            } catch (error) {
+                console.error('加载房间失败:', error);
+            }
+        }
+
+        function enterChat() {
+            const nickname = welcomeNickname.value.trim();
+            if (!nickname) {
+                alert('请输入昵称！');
+                return;
+            }
+
+            currentNickname = nickname;
+            nicknameInput.value = nickname;
+            welcomeScreen.style.display = 'none';
+            statusBar.textContent = '请选择一个房间';
+
+            const firstRoom = document.querySelector('.room-item');
+            if (firstRoom) {
+                selectRoom(firstRoom.dataset.room);
+            }
+        }
+
+        enterButton.addEventListener('click', enterChat);
+        welcomeNickname.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                enterChat();
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendMessage();
             }
         });
 
-        scrollToBottom();
+        createRoomBtn.addEventListener('click', createRoom);
+        newRoomName.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                createRoom();
+            }
+        });
+
+        document.querySelectorAll('.room-item').forEach(item => {
+            item.onclick = () => selectRoom(item.dataset.room);
+        });
     </script>
 </body>
 </html>
