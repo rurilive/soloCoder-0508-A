@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..config.settings import get_logger
 from ..database.connection import get_db
 from ..models.url import URLMapping
 from ..models.ai_config import AIConfig as AIConfigModel
@@ -34,6 +35,9 @@ from ..utils.auth import (
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+logger = get_logger(__name__)
+
 
 @router.post("/login", response_model=AdminLoginResponse)
 async def admin_login(request: AdminLoginRequest):
@@ -126,10 +130,15 @@ async def ai_review_url(
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):
+    logger.info(f"AI review requested - admin: {current_admin.get('sub')}, short_code: {request.short_code}")
+    
     url_mapping = db.query(URLMapping).filter(URLMapping.short_code == request.short_code).first()
     
     if not url_mapping:
+        logger.warning(f"AI review failed: short code not found - {request.short_code}")
         raise HTTPException(status_code=404, detail="短码不存在")
+    
+    logger.info(f"URL to review: {url_mapping.original_url}")
     
     ai_config = AIConfig(
         base_url=request.base_url,
@@ -137,7 +146,11 @@ async def ai_review_url(
         model=request.model
     )
     
+    logger.info(f"Calling AI service with model: {request.model}")
     result = await review_url_with_ai(url_mapping.original_url, ai_config)
+    
+    logger.info(f"AI review result - status: {result.status}")
+    logger.debug(f"AI review comment: {result.comment[:200]}...")
     
     service_error_keywords = [
         "调用失败", "请求超时", "过程中出错", "解析失败", "HTTP", 
@@ -147,6 +160,7 @@ async def ai_review_url(
         "配置错误", "发生未知错误"
     ]
     if result.status == "needs_manual_review" and any(k in result.comment for k in service_error_keywords):
+        logger.error(f"AI service error detected: {result.comment}")
         raise HTTPException(status_code=500, detail=result.comment)
     
     url_mapping.review_status = result.status
@@ -155,6 +169,7 @@ async def ai_review_url(
     db.commit()
     db.refresh(url_mapping)
     
+    logger.info(f"AI review completed successfully - status: {result.status}")
     return result
 
 @router.get("/stats")
@@ -219,9 +234,15 @@ async def batch_ai_review(
     db: Session = Depends(get_db),
     current_admin: dict = Depends(get_current_admin)
 ):
+    logger.info(f"Batch AI review requested - admin: {current_admin.get('sub')}, count: {len(request.short_codes)}")
+    logger.debug(f"Short codes to review: {request.short_codes}")
+    
     ai_config = db.query(AIConfigModel).filter(AIConfigModel.id == "default").first()
     if not ai_config:
+        logger.warning("Batch AI review failed: no AI configuration found")
         raise HTTPException(status_code=400, detail="请先配置AI设置")
+    
+    logger.info(f"Using AI config - base_url: {ai_config.base_url}, model: {ai_config.model}")
     
     ai_service_config = AIConfig(
         base_url=ai_config.base_url,
@@ -241,10 +262,12 @@ async def batch_ai_review(
         "配置错误", "发生未知错误"
     ]
     
-    for short_code in request.short_codes:
+    for idx, short_code in enumerate(request.short_codes):
         try:
+            logger.debug(f"Processing {idx + 1}/{len(request.short_codes)}: {short_code}")
             url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
             if not url_mapping:
+                logger.warning(f"Short code not found: {short_code}")
                 results.append(BatchReviewResult(
                     short_code=short_code,
                     status="failed",
@@ -258,6 +281,7 @@ async def batch_ai_review(
             is_service_error = result.status == "needs_manual_review" and any(k in result.comment for k in service_error_keywords)
             
             if is_service_error:
+                logger.error(f"Service error for {short_code}: {result.comment}")
                 results.append(BatchReviewResult(
                     short_code=short_code,
                     status="failed",
@@ -271,6 +295,7 @@ async def batch_ai_review(
             url_mapping.reviewed_at = datetime.utcnow()
             db.commit()
             
+            logger.debug(f"Successfully reviewed {short_code}: {result.status}")
             results.append(BatchReviewResult(
                 short_code=short_code,
                 status=result.status,
@@ -278,6 +303,7 @@ async def batch_ai_review(
             ))
             success_count += 1
         except Exception as e:
+            logger.exception(f"Unexpected error processing {short_code}: {str(e)}")
             results.append(BatchReviewResult(
                 short_code=short_code,
                 status="failed",
@@ -285,6 +311,7 @@ async def batch_ai_review(
             ))
             failed_count += 1
     
+    logger.info(f"Batch AI review completed - total: {len(request.short_codes)}, success: {success_count}, failed: {failed_count}")
     return BatchReviewResponse(
         total=len(request.short_codes),
         success=success_count,
