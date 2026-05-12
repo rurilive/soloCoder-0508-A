@@ -629,6 +629,8 @@
                     addMessage(data.nickname, data.content, data.timestamp, true, data.target_nickname);
                 } else if (data.type === 'user_list') {
                     updateUserList(data.users);
+                } else if (data.type === 'room_user_counts') {
+                    updateAllRoomUserCounts(data.counts);
                 }
             };
 
@@ -665,13 +667,17 @@
                 `;
                 userList.appendChild(userItem);
             });
+        }
 
-            if (currentRoom) {
-                const userCountEl = document.getElementById(`users-${currentRoom}`);
+        function updateAllRoomUserCounts(counts) {
+            document.querySelectorAll('.room-item').forEach(roomItem => {
+                const roomName = roomItem.dataset.room;
+                const userCountEl = document.getElementById(`users-${roomName}`);
                 if (userCountEl) {
-                    userCountEl.textContent = `${users.length} 人在线`;
+                    const count = counts[roomName] || 0;
+                    userCountEl.textContent = `${count} 人在线`;
                 }
-            }
+            });
         }
 
         function sendMessage() {
@@ -737,16 +743,21 @@
 
         async function loadRooms() {
             try {
-                const response = await fetch('/api/rooms');
-                const data = await response.json();
+                const [roomsResponse, countsResponse] = await Promise.all([
+                    fetch('/api/rooms'),
+                    fetch('/api/rooms/users/counts')
+                ]);
+                const roomsData = await roomsResponse.json();
+                const countsData = await countsResponse.json();
                 roomList.innerHTML = '';
-                data.rooms.forEach(room => {
+                roomsData.rooms.forEach(room => {
                     const roomItem = document.createElement('div');
                     roomItem.className = 'room-item';
                     roomItem.dataset.room = room.name;
+                    const userCount = countsData.counts[room.name] || 0;
                     roomItem.innerHTML = `
                         <div class="room-item-name">${room.name}</div>
-                        <div class="room-item-users" id="users-${room.name}">0 人在线</div>
+                        <div class="room-item-users" id="users-${room.name}">${userCount} 人在线</div>
                     `;
                     roomItem.onclick = () => selectRoom(room.name);
                     roomList.appendChild(roomItem);

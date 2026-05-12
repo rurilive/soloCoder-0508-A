@@ -36,6 +36,11 @@ class ConnectionManager:
             for connection in self.rooms[room].values():
                 await connection.send_json(message)
 
+    async def broadcast_to_all(self, message: dict):
+        for room in self.rooms:
+            for connection in self.rooms[room].values():
+                await connection.send_json(message)
+
     async def send_private(self, message: dict, room: str, target_nickname: str, sender_nickname: str):
         if room in self.rooms:
             if target_nickname in self.rooms[room]:
@@ -47,6 +52,9 @@ class ConnectionManager:
         if room in self.rooms:
             return list(self.rooms[room].keys())
         return []
+
+    def get_all_room_user_counts(self) -> Dict[str, int]:
+        return {room: len(users) for room, users in self.rooms.items()}
 
 
 manager = ConnectionManager()
@@ -99,6 +107,12 @@ async def get_room_users(room_name: str):
     return {"users": users}
 
 
+@app.get("/api/rooms/users/counts")
+async def get_all_room_user_counts():
+    counts = manager.get_all_room_user_counts()
+    return {"counts": counts}
+
+
 @app.websocket("/ws/{room}/{nickname}")
 async def websocket_endpoint(websocket: WebSocket, room: str, nickname: str, db: Session = Depends(get_db)):
     db_room = get_room_by_name(db, room)
@@ -113,6 +127,12 @@ async def websocket_endpoint(websocket: WebSocket, room: str, nickname: str, db:
         "type": "user_list",
         "users": users
     }, room)
+    
+    room_user_counts = manager.get_all_room_user_counts()
+    await manager.broadcast_to_all({
+        "type": "room_user_counts",
+        "counts": room_user_counts
+    })
 
     try:
         while True:
@@ -155,6 +175,12 @@ async def websocket_endpoint(websocket: WebSocket, room: str, nickname: str, db:
             "type": "user_list",
             "users": users
         }, room)
+        
+        room_user_counts = manager.get_all_room_user_counts()
+        await manager.broadcast_to_all({
+            "type": "room_user_counts",
+            "counts": room_user_counts
+        })
 
 
 if __name__ == "__main__":
