@@ -139,7 +139,14 @@ async def ai_review_url(
     
     result = await review_url_with_ai(url_mapping.original_url, ai_config)
     
-    if result.status == "needs_manual_review" and any(k in result.comment for k in ["调用失败", "请求超时", "过程中出错", "解析失败", "HTTP"]):
+    service_error_keywords = [
+        "调用失败", "请求超时", "过程中出错", "解析失败", "HTTP", 
+        "连接失败", "重定向", "认证失败", "端点不存在", "请求过于频繁",
+        "内部错误", "网关错误", "服务不可用", "无效的JSON响应",
+        "缺少或无效的'choices'字段", "缺少'message.content'字段",
+        "配置错误", "发生未知错误"
+    ]
+    if result.status == "needs_manual_review" and any(k in result.comment for k in service_error_keywords):
         raise HTTPException(status_code=500, detail=result.comment)
     
     url_mapping.review_status = result.status
@@ -226,6 +233,14 @@ async def batch_ai_review(
     success_count = 0
     failed_count = 0
     
+    service_error_keywords = [
+        "调用失败", "请求超时", "过程中出错", "解析失败", "HTTP", 
+        "连接失败", "重定向", "认证失败", "端点不存在", "请求过于频繁",
+        "内部错误", "网关错误", "服务不可用", "无效的JSON响应",
+        "缺少或无效的'choices'字段", "缺少'message.content'字段",
+        "配置错误", "发生未知错误"
+    ]
+    
     for short_code in request.short_codes:
         try:
             url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
@@ -240,7 +255,7 @@ async def batch_ai_review(
             
             result = await review_url_with_ai(url_mapping.original_url, ai_service_config)
             
-            is_service_error = result.status == "needs_manual_review" and any(k in result.comment for k in ["调用失败", "请求超时", "过程中出错", "解析失败", "HTTP"])
+            is_service_error = result.status == "needs_manual_review" and any(k in result.comment for k in service_error_keywords)
             
             if is_service_error:
                 results.append(BatchReviewResult(

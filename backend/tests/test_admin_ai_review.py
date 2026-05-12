@@ -111,7 +111,7 @@ class TestAdminAIReview:
 
         mock_response = MagicMock()
         mock_response.status_code = 401
-        mock_response.json.return_value = {}
+        mock_response.text = ""
 
         with patch("httpx.AsyncClient") as mock_client:
             mock_post = AsyncMock(return_value=mock_response)
@@ -222,7 +222,7 @@ class TestAdminBatchAIReview:
 
         mock_response_error = MagicMock()
         mock_response_error.status_code = 500
-        mock_response_error.json.return_value = {}
+        mock_response_error.text = ""
 
         with patch("httpx.AsyncClient") as mock_client:
             mock_post = AsyncMock(side_effect=[mock_response_ok, mock_response_error])
