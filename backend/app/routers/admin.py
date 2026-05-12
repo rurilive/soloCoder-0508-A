@@ -139,6 +139,12 @@ async def ai_review_url(
     
     result = await review_url_with_ai(url_mapping.original_url, ai_config)
     
+    error_keywords = ["出错", "错误", "超时", "失败", "Exception", "Error", "not installed", "status code"]
+    is_error = any(keyword in result.comment for keyword in error_keywords)
+    
+    if is_error:
+        raise HTTPException(status_code=500, detail=result.comment)
+    
     url_mapping.review_status = result.status
     url_mapping.review_comment = result.comment
     url_mapping.reviewed_at = datetime.utcnow()
@@ -223,6 +229,8 @@ async def batch_ai_review(
     success_count = 0
     failed_count = 0
     
+    error_keywords = ["出错", "错误", "超时", "失败", "Exception", "Error", "not installed", "status code"]
+    
     for short_code in request.short_codes:
         try:
             url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
@@ -236,6 +244,17 @@ async def batch_ai_review(
                 continue
             
             result = await review_url_with_ai(url_mapping.original_url, ai_service_config)
+            
+            is_error = any(keyword in result.comment for keyword in error_keywords)
+            
+            if is_error:
+                results.append(BatchReviewResult(
+                    short_code=short_code,
+                    status="failed",
+                    error=result.comment
+                ))
+                failed_count += 1
+                continue
             
             url_mapping.review_status = result.status
             url_mapping.review_comment = result.comment

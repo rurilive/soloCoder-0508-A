@@ -156,6 +156,7 @@ const AdminDashboard = ({ token, onLogout }) => {
     }
     
     setError('')
+    setMessage('')
     setBatchReviewing(true)
     try {
       const response = await fetch('/api/admin/urls/batch-ai-review', {
@@ -171,11 +172,23 @@ const AdminDashboard = ({ token, onLogout }) => {
       
       if (response.ok) {
         const data = await response.json()
-        setMessage(`批量AI审核完成：成功 ${data.success} 个，失败 ${data.failed} 个`)
+        
+        if (data.failed > 0) {
+          const failedItems = data.results.filter(r => r.status === 'failed')
+          const errorDetails = failedItems.slice(0, 3).map(r => `${r.short_code}: ${r.error}`).join('; ')
+          const moreText = failedItems.length > 3 ? `，还有 ${failedItems.length - 3} 个错误` : ''
+          setError(`批量AI审核完成：成功 ${data.success} 个，失败 ${data.failed} 个。错误详情: ${errorDetails}${moreText}`)
+        } else {
+          setMessage(`批量AI审核完成：成功 ${data.success} 个，失败 ${data.failed} 个`)
+        }
+        
         setSelectedShortCodes([])
         fetchStats()
         fetchUrls()
-        setTimeout(() => setMessage(''), 5000)
+        
+        if (data.failed === 0) {
+          setTimeout(() => setMessage(''), 5000)
+        }
       } else {
         const data = await response.json()
         setError(data.detail || '批量审核失败')
