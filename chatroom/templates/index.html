@@ -510,6 +510,13 @@
                 </div>
                 {% endfor %}
             </div>
+            
+            <h2 style="margin-top: 20px;">私人聊天</h2>
+            <div class="room-list" id="privateRoomList">
+                <div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px; font-size: 13px;">
+                    暂无私人聊天
+                </div>
+            </div>
         </div>
 
         <div class="chat-container">
@@ -626,7 +633,17 @@
                 if (data.type === 'message') {
                     addMessage(data.nickname, data.content, data.timestamp);
                 } else if (data.type === 'private_message') {
-                    addMessage(data.nickname, data.content, data.timestamp, true, data.target_nickname);
+                    const isTarget = data.target_nickname === currentNickname;
+                    const otherUser = isTarget ? data.nickname : data.target_nickname;
+                    
+                    if (currentRoom === data.private_room) {
+                        addMessage(data.nickname, data.content, data.timestamp, true, data.target_nickname);
+                    } else {
+                        if (isTarget) {
+                            showNotification(`${data.nickname} 给你发了私信`);
+                        }
+                    }
+                    loadPrivateRooms();
                 } else if (data.type === 'user_list') {
                     updateUserList(data.users);
                 } else if (data.type === 'room_user_counts') {
@@ -681,14 +698,83 @@
         }
 
         function sendMessage() {
-            const content = messageInput.value.trim();
+            let content = messageInput.value.trim();
             
             if (content && ws && ws.readyState === WebSocket.OPEN) {
+                if (currentRoom && currentRoom.startsWith('private:')) {
+                    const parts = currentRoom.split(':');
+                    const otherUser = parts[1] === currentNickname ? parts[2] : parts[1];
+                    if (!content.startsWith('@')) {
+                        content = `@${otherUser} ${content}`;
+                    }
+                }
                 ws.send(JSON.stringify({
                     content: content
                 }));
                 messageInput.value = '';
             }
+        }
+
+        function showNotification(message) {
+            if (Notification.permission === 'granted') {
+                new Notification(message);
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(message);
+                    }
+                });
+            }
+            console.log(message);
+        }
+
+        async function loadPrivateRooms() {
+            if (!currentNickname) return;
+            
+            try {
+                const response = await fetch(`/api/users/${encodeURIComponent(currentNickname)}/private-rooms`);
+                const data = await response.json();
+                const privateRoomList = document.getElementById('privateRoomList');
+                
+                if (data.private_rooms.length === 0) {
+                    privateRoomList.innerHTML = '<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px; font-size: 13px;">暂无私人聊天</div>';
+                    return;
+                }
+                
+                privateRoomList.innerHTML = '';
+                data.private_rooms.forEach(room => {
+                    const roomItem = document.createElement('div');
+                    roomItem.className = 'room-item private-room-item';
+                    roomItem.dataset.room = room.name;
+                    roomItem.innerHTML = `
+                        <div class="room-item-name">💬 ${room.other_user}</div>
+                    `;
+                    roomItem.onclick = () => selectPrivateRoom(room.name, room.other_user);
+                    privateRoomList.appendChild(roomItem);
+                });
+            } catch (error) {
+                console.error('加载私人房间失败:', error);
+            }
+        }
+
+        function selectPrivateRoom(roomName, otherUser) {
+            if (!currentNickname) {
+                alert('请先输入昵称！');
+                return;
+            }
+
+            document.querySelectorAll('.room-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            const roomItem = document.querySelector(`.private-room-item[data-room="${roomName}"]`);
+            if (roomItem) {
+                roomItem.classList.add('active');
+            }
+
+            currentRoom = roomName;
+            currentRoomEl.textContent = `私人聊天: ${otherUser}`;
+            connectToRoom(roomName, currentNickname);
         }
 
         function selectRoom(roomName) {
@@ -774,10 +860,16 @@
                 return;
             }
 
+            if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+
             currentNickname = nickname;
             nicknameInput.value = nickname;
             welcomeScreen.style.display = 'none';
             statusBar.textContent = '请选择一个房间';
+
+            loadPrivateRooms();
 
             const firstRoom = document.querySelector('.room-item');
             if (firstRoom) {

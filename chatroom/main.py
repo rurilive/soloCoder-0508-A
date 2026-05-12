@@ -18,18 +18,22 @@ templates = Jinja2Templates(directory="chatroom/templates")
 class ConnectionManager:
     def __init__(self):
         self.rooms: Dict[str, Dict[str, WebSocket]] = {}
+        self.user_connections: Dict[str, WebSocket] = {}
 
     async def connect(self, websocket: WebSocket, room: str, nickname: str):
         await websocket.accept()
         if room not in self.rooms:
             self.rooms[room] = {}
         self.rooms[room][nickname] = websocket
+        self.user_connections[nickname] = websocket
 
     def disconnect(self, websocket: WebSocket, room: str, nickname: str):
         if room in self.rooms and nickname in self.rooms[room]:
             del self.rooms[room][nickname]
             if not self.rooms[room]:
                 del self.rooms[room]
+        if nickname in self.user_connections:
+            del self.user_connections[nickname]
 
     async def broadcast(self, message: dict, room: str):
         if room in self.rooms:
@@ -40,6 +44,12 @@ class ConnectionManager:
         for room in self.rooms:
             for connection in self.rooms[room].values():
                 await connection.send_json(message)
+
+    async def send_private_global(self, message: dict, target_nickname: str, sender_nickname: str):
+        if target_nickname in self.user_connections:
+            await self.user_connections[target_nickname].send_json(message)
+        if sender_nickname in self.user_connections:
+            await self.user_connections[sender_nickname].send_json(message)
 
     async def send_private(self, message: dict, room: str, target_nickname: str, sender_nickname: str):
         if room in self.rooms:
@@ -55,6 +65,12 @@ class ConnectionManager:
 
     def get_all_room_user_counts(self) -> Dict[str, int]:
         return {room: len(users) for room, users in self.rooms.items()}
+
+    def get_user_current_room(self, nickname: str) -> str:
+        for room, users in self.rooms.items():
+            if nickname in users:
+                return room
+        return None
 
 
 manager = ConnectionManager()
@@ -113,6 +129,12 @@ async def get_all_room_user_counts():
     return {"counts": counts}
 
 
+@app.get("/api/users/{nickname}/private-rooms")
+async def get_user_private_rooms(nickname: str, db: Session = Depends(get_db)):
+    private_rooms = get_private_rooms_for_user(db, nickname)
+    return {"private_rooms": private_rooms}
+
+
 @app.websocket("/ws/{room}/{nickname}")
 async def websocket_endpoint(websocket: WebSocket, room: str, nickname: str, db: Session = Depends(get_db)):
     db_room = get_room_by_name(db, room)
@@ -150,15 +172,23 @@ async def websocket_endpoint(websocket: WebSocket, room: str, nickname: str, db:
                     target_nickname = private_match.group(1)
                     private_content = private_match.group(2)
                     
-                    save_message(db, nickname, content, db_room.id, 1, target_nickname)
+                    private_room_name = f"private:{nickname}:{target_nickname}"
+                    private_room_name_alt = f"private:{target_nickname}:{nickname}"
                     
-                    await manager.send_private({
+                    db_private_room = get_room_by_name(db, private_room_name) or get_room_by_name(db, private_room_name_alt)
+                    if not db_private_room:
+                        db_private_room = create_room(db, private_room_name, 1)
+                    
+                    save_message(db, nickname, content, db_private_room.id, 1, target_nickname)
+                    
+                    await manager.send_private_global({
                         "type": "private_message",
                         "nickname": nickname,
                         "target_nickname": target_nickname,
                         "content": private_content,
-                        "timestamp": timestamp
-                    }, room, target_nickname, nickname)
+                        "timestamp": timestamp,
+                        "private_room": private_room_name
+                    }, target_nickname, nickname)
                 else:
                     save_message(db, nickname, content, db_room.id)
                     

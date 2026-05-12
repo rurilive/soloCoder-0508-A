@@ -19,6 +19,7 @@ class Room(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_private = Column(Integer, default=0)
     messages = relationship("Message", back_populates="room")
 
 
@@ -47,11 +48,11 @@ def get_db():
 
 
 def get_all_rooms(db):
-    return db.query(Room).order_by(Room.created_at.desc()).all()
+    return db.query(Room).filter(Room.is_private == 0).order_by(Room.created_at.desc()).all()
 
 
-def create_room(db, name: str):
-    db_room = Room(name=name)
+def create_room(db, name: str, is_private: int = 0):
+    db_room = Room(name=name, is_private=is_private)
     db.add(db_room)
     db.commit()
     db.refresh(db_room)
@@ -63,6 +64,9 @@ def get_room_by_name(db, name: str):
 
 
 def get_recent_messages(db, room_id: int, limit: int = 20):
+    room = db.query(Room).filter(Room.id == room_id).first()
+    if room and room.is_private:
+        return db.query(Message).filter(Message.room_id == room_id).order_by(Message.timestamp.desc()).limit(limit).all()[::-1]
     return db.query(Message).filter(Message.room_id == room_id, Message.is_private == 0).order_by(Message.timestamp.desc()).limit(limit).all()[::-1]
 
 
@@ -78,3 +82,18 @@ def save_message(db, nickname: str, content: str, room_id: int, is_private: int 
     db.commit()
     db.refresh(db_message)
     return db_message
+
+
+def get_private_rooms_for_user(db, nickname: str):
+    private_rooms = db.query(Room).filter(Room.is_private == 1).all()
+    user_private_rooms = []
+    for room in private_rooms:
+        if room.name.startswith('private:'):
+            parts = room.name.split(':')
+            if len(parts) == 3 and (parts[1] == nickname or parts[2] == nickname):
+                other_user = parts[2] if parts[1] == nickname else parts[1]
+                user_private_rooms.append({
+                    'name': room.name,
+                    'other_user': other_user
+                })
+    return user_private_rooms
