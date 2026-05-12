@@ -37,8 +37,9 @@ manager = ConnectionManager()
 async def get(request: Request, db: Session = Depends(get_db)):
     messages = get_recent_messages(db)
     return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "messages": messages}
+        request=request,
+        name="index.html",
+        context={"messages": messages}
     )
 
 
