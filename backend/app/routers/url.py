@@ -53,6 +53,9 @@ def redirect_to_original(
     if not url_mapping:
         raise HTTPException(status_code=404, detail="Short code not found")
     
+    if url_mapping.review_status == "rejected":
+        raise HTTPException(status_code=403, detail="This URL has been rejected due to content policy violation")
+    
     update_access_time(db, url_mapping)
     
     return RedirectResponse(url=url_mapping.original_url, status_code=302)
