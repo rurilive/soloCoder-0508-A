@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}添加事件 - 日程管理{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <a href="{{ url_for('calendar') }}" class="back-btn">&larr; 返回</a>
+        <h2>添加新事件</h2>
+    </div>
+    
+    <form method="POST" class="event-form">
+        <div class="form-group">
+            <label for="title">事件标题 *</label>
+            <input type="text" id="title" name="title" required>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="date">日期 *</label>
+                <input type="date" id="date" name="date" value="{{ date }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="time">时间</label>
+                <input type="time" id="time" name="time">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">描述</label>
+            <textarea id="description" name="description" rows="4"></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存事件</button>
+            <a href="{{ url_for('calendar') }}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

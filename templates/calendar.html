@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ month_name }} - 日程管理{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <div class="calendar-header">
+        <a href="{{ url_for('calendar', year=prev_year, month=prev_month) }}" class="nav-btn">&larr; 上月</a>
+        <h2>{{ month_name }}</h2>
+        <a href="{{ url_for('calendar', year=next_year, month=next_month) }}" class="nav-btn">下月 &rarr;</a>
+    </div>
+    
+    <div class="calendar">
+        <div class="weekday-header">
+            <div class="weekday">周一</div>
+            <div class="weekday">周二</div>
+            <div class="weekday">周三</div>
+            <div class="weekday">周四</div>
+            <div class="weekday">周五</div>
+            <div class="weekday weekend">周六</div>
+            <div class="weekday weekend">周日</div>
+        </div>
+        
+        <div class="days-grid">
+            {% for day in days %}
+                {% if day %}
+                    <div class="day-cell {% if day.events.count > 0 %}has-events{% endif %}">
+                        <a href="{{ url_for('day_events', date=day.date) }}" class="day-number">{{ day.day }}</a>
+                        {% if day.events.count > 0 %}
+                            <div class="events-preview">
+                                {% for title in day.events.titles[:2] %}
+                                    <div class="event-dot">{{ title[:10] }}</div>
+                                {% endfor %}
+                                {% if day.events.count > 2 %}
+                                    <div class="more-events">+{{ day.events.count - 2 }}更多</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="day-cell empty"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="actions">
+        <a href="{{ url_for('add_event') }}" class="btn btn-primary">添加新事件</a>
+    </div>
+</div>
+{% endblock %}

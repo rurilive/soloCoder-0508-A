@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ date }} - 日程管理{% endblock %}
+
+{% block content %}
+<div class="day-container">
+    <div class="day-header">
+        <a href="{{ url_for('calendar') }}" class="back-btn">&larr; 返回日历</a>
+        <h2>{{ date }}</h2>
+        <a href="{{ url_for('add_event', date=date) }}" class="btn btn-primary">添加事件</a>
+    </div>
+    
+    {% if events %}
+        <div class="events-list">
+            {% for event in events %}
+                <div class="event-card">
+                    <div class="event-time">
+                        <h3>{{ event['title'] }}</h3>
+                        {% if event['time'] %}
+                            <span class="time">{{ event['time'] }}</span>
+                        {% endif %}
+                    </div>
+                    {% if event['description'] %}
+                        <p class="event-description">{{ event['description'] }}</p>
+                    {% endif %}
+                    <div class="event-actions">
+                        <a href="{{ url_for('delete_event', event_id=event['id']) }}" class="btn btn-danger" onclick="return confirm('确定要删除这个事件吗？')">删除</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-events">
+            <p>今天没有安排事件。</p>
+            <a href="{{ url_for('add_event', date=date) }}" class="btn btn-primary">添加第一个事件</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
