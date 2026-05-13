@@ -17,13 +17,51 @@
         
         <div class="form-row">
             <div class="form-group">
-                <label for="date">日期 *</label>
+                <label for="date">开始日期 *</label>
                 <input type="date" id="date" name="date" value="{{ date }}" required>
             </div>
             
             <div class="form-group">
                 <label for="time">时间</label>
                 <input type="time" id="time" name="time" value="{{ time }}">
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="duration">持续时间（分钟）</label>
+                <input type="number" id="duration" name="duration" min="0" value="0">
+            </div>
+            
+            <div class="form-group">
+                <label for="end_date">结束日期（跨天事件）</label>
+                <input type="date" id="end_date" name="end_date">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>提醒设置</label>
+            <div class="reminder-settings">
+                <select id="reminder_type" name="reminder_type">
+                    <option value="none">不提醒</option>
+                    <option value="minutes">分钟前</option>
+                    <option value="hours">小时前</option>
+                    <option value="days">天前</option>
+                </select>
+                <input type="number" id="reminder_value" name="reminder_value" min="0" value="0" placeholder="数值">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>重复设置</label>
+            <div class="repeat-settings">
+                <select id="repeat_type" name="repeat_type">
+                    <option value="none">不重复</option>
+                    <option value="daily">每天</option>
+                    <option value="weekly">每周</option>
+                    <option value="monthly">每月</option>
+                </select>
+                <input type="date" id="repeat_end_date" name="repeat_end_date" placeholder="重复结束日期">
             </div>
         </div>
         

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}编辑事件 - 日程管理{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <a href="{{ url_for('day_events', date=event['date']) }}" class="back-btn">&larr; 返回</a>
+        <h2>编辑事件</h2>
+    </div>
+    
+    <form method="POST" class="event-form">
+        <div class="form-group">
+            <label for="title">事件标题 *</label>
+            <input type="text" id="title" name="title" value="{{ event['title'] }}" required>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="date">开始日期 *</label>
+                <input type="date" id="date" name="date" value="{{ event['date'] }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="time">时间</label>
+                <input type="time" id="time" name="time" value="{{ event['time'] or '' }}">
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="duration">持续时间（分钟）</label>
+                <input type="number" id="duration" name="duration" min="0" value="{{ event['duration'] or 0 }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="end_date">结束日期（跨天事件）</label>
+                <input type="date" id="end_date" name="end_date" value="{{ event['end_date'] or '' }}">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>提醒设置</label>
+            <div class="reminder-settings">
+                <select id="reminder_type" name="reminder_type">
+                    <option value="none" {% if event['reminder_type'] == 'none' %}selected{% endif %}>不提醒</option>
+                    <option value="minutes" {% if event['reminder_type'] == 'minutes' %}selected{% endif %}>分钟前</option>
+                    <option value="hours" {% if event['reminder_type'] == 'hours' %}selected{% endif %}>小时前</option>
+                    <option value="days" {% if event['reminder_type'] == 'days' %}selected{% endif %}>天前</option>
+                </select>
+                <input type="number" id="reminder_value" name="reminder_value" min="0" value="{{ event['reminder_value'] or 0 }}" placeholder="数值">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>重复设置</label>
+            <div class="repeat-settings">
+                <select id="repeat_type" name="repeat_type">
+                    <option value="none" {% if event['repeat_type'] == 'none' %}selected{% endif %}>不重复</option>
+                    <option value="daily" {% if event['repeat_type'] == 'daily' %}selected{% endif %}>每天</option>
+                    <option value="weekly" {% if event['repeat_type'] == 'weekly' %}selected{% endif %}>每周</option>
+                    <option value="monthly" {% if event['repeat_type'] == 'monthly' %}selected{% endif %}>每月</option>
+                </select>
+                <input type="date" id="repeat_end_date" name="repeat_end_date" value="{{ event['repeat_end_date'] or '' }}" placeholder="重复结束日期">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">描述</label>
+            <textarea id="description" name="description" rows="4">{{ event['description'] or '' }}</textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存事件</button>
+            <a href="{{ url_for('day_events', date=event['date']) }}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

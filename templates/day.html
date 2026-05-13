@@ -13,17 +13,61 @@
     {% if events %}
         <div class="events-list">
             {% for event in events %}
-                <div class="event-card">
+                <div class="event-card {% if event['is_completed'] %}completed{% endif %}">
                     <div class="event-time">
-                        <h3>{{ event['title'] }}</h3>
+                        <div class="event-title-group">
+                            <h3>{{ event['title'] }}</h3>
+                            {% if event['repeat_type'] != 'none' %}
+                                <span class="repeat-badge">
+                                    {% if event['repeat_type'] == 'daily' %}每天{% endif %}
+                                    {% if event['repeat_type'] == 'weekly' %}每周{% endif %}
+                                    {% if event['repeat_type'] == 'monthly' %}每月{% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
                         {% if event['time'] %}
                             <span class="time">{{ event['time'] }}</span>
                         {% endif %}
                     </div>
+                    
+                    <div class="event-meta">
+                        {% if event['duration'] > 0 %}
+                            <span class="meta-item">⏱ {{ event['duration'] }}分钟</span>
+                        {% endif %}
+                        {% if event['end_date'] %}
+                            <span class="meta-item">📅 至 {{ event['end_date'] }}</span>
+                        {% endif %}
+                        {% if event['reminder_type'] != 'none' %}
+                            <span class="meta-item">
+                                🔔 {{ event['reminder_value'] }}
+                                {% if event['reminder_type'] == 'minutes' %}分钟{% endif %}
+                                {% if event['reminder_type'] == 'hours' %}小时{% endif %}
+                                {% if event['reminder_type'] == 'days' %}天{% endif %}
+                                前提醒
+                            </span>
+                        {% endif %}
+                    </div>
+                    
                     {% if event['description'] %}
                         <p class="event-description">{{ event['description'] }}</p>
                     {% endif %}
+                    
+                    {% if event['is_completed'] %}
+                        <div class="completion-note">
+                            <strong>✅ 已完成</strong>
+                            {% if event['completion_note'] %}
+                                <p>{{ event['completion_note'] }}</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
                     <div class="event-actions">
+                        {% if not event['is_completed'] %}
+                            <button onclick="showCompleteForm({{ event['id'] }})" class="btn btn-success">完成</button>
+                        {% else %}
+                            <a href="{{ url_for('uncomplete_event', event_id=event['id']) }}" class="btn btn-secondary">取消完成</a>
+                        {% endif %}
+                        <a href="{{ url_for('edit_event', event_id=event['id']) }}" class="btn btn-secondary">编辑</a>
                         <a href="{{ url_for('delete_event', event_id=event['id']) }}" class="btn btn-danger" onclick="return confirm('确定要删除这个事件吗？')">删除</a>
                     </div>
                 </div>
@@ -36,4 +80,40 @@
         </div>
     {% endif %}
 </div>
+
+<div id="completeModal" class="modal">
+    <div class="modal-content">
+        <h3>标记为完成</h3>
+        <form id="completeForm" method="POST">
+            <div class="form-group">
+                <label for="completion_note">完成备注</label>
+                <textarea id="completion_note" name="completion_note" rows="3" placeholder="添加完成备注..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">确认完成</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showCompleteForm(eventId) {
+    const modal = document.getElementById('completeModal');
+    const form = document.getElementById('completeForm');
+    form.action = '/complete/' + eventId;
+    modal.style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('completeModal').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('completeModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+</script>
 {% endblock %}

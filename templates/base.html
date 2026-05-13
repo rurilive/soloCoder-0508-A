@@ -19,5 +19,49 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+    
+    <div id="notificationContainer"></div>
+    
+    <script>
+        let notifiedEvents = new Set();
+        
+        function checkReminders() {
+            fetch('/api/reminders')
+                .then(response => response.json())
+                .then(reminders => {
+                    reminders.forEach(reminder => {
+                        if (!notifiedEvents.has(reminder.id)) {
+                            showNotification(reminder);
+                            notifiedEvents.add(reminder.id);
+                        }
+                    });
+                })
+                .catch(error => console.error('Error checking reminders:', error));
+        }
+        
+        function showNotification(reminder) {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `
+                <div class="notification-title">🔔 事件提醒</div>
+                <div class="notification-content">
+                    <strong>${reminder.title}</strong><br>
+                    ${reminder.event_date} ${reminder.event_time}
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 30000);
+        }
+        
+        checkReminders();
+        setInterval(checkReminders, 60000);
+    </script>
 </body>
 </html>
