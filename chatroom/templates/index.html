@@ -591,7 +591,13 @@
             messageDiv.className = 'message' + (isPrivate ? ' private-message' : '');
             let privateBadge = '';
             if (isPrivate) {
-                privateBadge = `<span class="private-badge">私信 @${targetNickname}</span>`;
+                let displayTarget = targetNickname;
+                if (currentRoom && currentRoom.startsWith('private:')) {
+                    const parts = currentRoom.split(':');
+                    const otherUser = parts[1] === currentNickname ? parts[2] : parts[1];
+                    displayTarget = otherUser;
+                }
+                privateBadge = `<span class="private-badge">私信 @${displayTarget}</span>`;
             }
             messageDiv.innerHTML = `
                 <div class="message-header">
@@ -664,8 +670,13 @@
                 const response = await fetch(`/api/rooms/${encodeURIComponent(room)}/messages`);
                 const data = await response.json();
                 chatMessages.innerHTML = '';
+                const isPrivateRoom = room.startsWith('private:');
                 data.messages.forEach(msg => {
-                    addMessage(msg.nickname, msg.content, msg.timestamp);
+                    if (isPrivateRoom) {
+                        addMessage(msg.nickname, msg.content, msg.timestamp, true, msg.target_nickname);
+                    } else {
+                        addMessage(msg.nickname, msg.content, msg.timestamp);
+                    }
                 });
             } catch (error) {
                 console.error('加载消息失败:', error);
@@ -701,11 +712,12 @@
             let content = messageInput.value.trim();
             
             if (content && ws && ws.readyState === WebSocket.OPEN) {
+                let targetUser = null;
                 if (currentRoom && currentRoom.startsWith('private:')) {
                     const parts = currentRoom.split(':');
-                    const otherUser = parts[1] === currentNickname ? parts[2] : parts[1];
+                    targetUser = parts[1] === currentNickname ? parts[2] : parts[1];
                     if (!content.startsWith('@')) {
-                        content = `@${otherUser} ${content}`;
+                        content = `@${targetUser} ${content}`;
                     }
                 }
                 ws.send(JSON.stringify({

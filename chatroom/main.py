@@ -114,7 +114,14 @@ async def get_room_messages(room_name: str, db: Session = Depends(get_db)):
     if not room:
         return {"messages": []}
     messages = get_recent_messages(db, room.id)
-    return {"messages": [{"nickname": m.nickname, "content": m.content, "timestamp": m.timestamp.isoformat()} for m in messages]}
+    return {"messages": [
+        {
+            "nickname": m.nickname, 
+            "content": m.content, 
+            "timestamp": m.timestamp.isoformat(),
+            "target_nickname": m.target_nickname
+        } for m in messages
+    ]}
 
 
 @app.get("/api/rooms/{room_name}/users")
