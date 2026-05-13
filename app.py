@@ -102,7 +102,8 @@ def day_events(date):
     events = cursor.fetchall()
     conn.close()
     
-    return render_template('day.html', date=date, events=events)
+    current_time = datetime.now().strftime('%H:%M')
+    return render_template('day.html', date=date, events=events, current_time=current_time)
 
 
 @app.route('/add', methods=['GET', 'POST'])
@@ -125,7 +126,8 @@ def add_event():
         return redirect(url_for('day_events', date=date))
     
     date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
-    return render_template('add_event.html', date=date)
+    time = request.args.get('time', datetime.now().strftime('%H:%M'))
+    return render_template('add_event.html', date=date, time=time)
 
 
 @app.route('/delete/<int:event_id>')
