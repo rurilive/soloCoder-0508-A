@@ -588,16 +588,11 @@
 
         function addMessage(nickname, content, timestamp, isPrivate = false, targetNickname = null) {
             const messageDiv = document.createElement('div');
-            messageDiv.className = 'message' + (isPrivate ? ' private-message' : '');
+            let showPrivateStyle = isPrivate && currentRoom && !currentRoom.startsWith('private:');
+            messageDiv.className = 'message' + (showPrivateStyle ? ' private-message' : '');
             let privateBadge = '';
-            if (isPrivate) {
-                let displayTarget = targetNickname;
-                if (currentRoom && currentRoom.startsWith('private:')) {
-                    const parts = currentRoom.split(':');
-                    const otherUser = parts[1] === currentNickname ? parts[2] : parts[1];
-                    displayTarget = otherUser;
-                }
-                privateBadge = `<span class="private-badge">私信 @${displayTarget}</span>`;
+            if (showPrivateStyle) {
+                privateBadge = `<span class="private-badge">私信 @${targetNickname}</span>`;
             }
             messageDiv.innerHTML = `
                 <div class="message-header">
@@ -670,13 +665,8 @@
                 const response = await fetch(`/api/rooms/${encodeURIComponent(room)}/messages`);
                 const data = await response.json();
                 chatMessages.innerHTML = '';
-                const isPrivateRoom = room.startsWith('private:');
                 data.messages.forEach(msg => {
-                    if (isPrivateRoom) {
-                        addMessage(msg.nickname, msg.content, msg.timestamp, true, msg.target_nickname);
-                    } else {
-                        addMessage(msg.nickname, msg.content, msg.timestamp);
-                    }
+                    addMessage(msg.nickname, msg.content, msg.timestamp, false, msg.target_nickname);
                 });
             } catch (error) {
                 console.error('加载消息失败:', error);
