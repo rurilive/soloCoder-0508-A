@@ -35,28 +35,54 @@ class ConnectionManager:
         if nickname in self.user_connections:
             del self.user_connections[nickname]
 
+    async def _safe_send(self, websocket: WebSocket, message: dict):
+        try:
+            await websocket.send_json(message)
+            return True
+        except Exception:
+            return False
+
     async def broadcast(self, message: dict, room: str):
-        if room in self.rooms:
-            for connection in self.rooms[room].values():
-                await connection.send_json(message)
+        if room not in self.rooms:
+            return
+        disconnected_users = []
+        for nickname, connection in self.rooms[room].items():
+            if not await self._safe_send(connection, message):
+                disconnected_users.append(nickname)
+        for nickname in disconnected_users:
+            self.disconnect(self.rooms[room][nickname], room, nickname)
 
     async def broadcast_to_all(self, message: dict):
+        disconnected_rooms = {}
         for room in self.rooms:
-            for connection in self.rooms[room].values():
-                await connection.send_json(message)
+            disconnected_users = []
+            for nickname, connection in self.rooms[room].items():
+                if not await self._safe_send(connection, message):
+                    disconnected_users.append(nickname)
+            if disconnected_users:
+                disconnected_rooms[room] = disconnected_users
+        for room, users in disconnected_rooms.items():
+            for nickname in users:
+                if room in self.rooms and nickname in self.rooms[room]:
+                    self.disconnect(self.rooms[room][nickname], room, nickname)
 
     async def send_private_global(self, message: dict, target_nickname: str, sender_nickname: str):
         if target_nickname in self.user_connections:
-            await self.user_connections[target_nickname].send_json(message)
+            if not await self._safe_send(self.user_connections[target_nickname], message):
+                del self.user_connections[target_nickname]
         if sender_nickname in self.user_connections:
-            await self.user_connections[sender_nickname].send_json(message)
+            if not await self._safe_send(self.user_connections[sender_nickname], message):
+                del self.user_connections[sender_nickname]
 
     async def send_private(self, message: dict, room: str, target_nickname: str, sender_nickname: str):
-        if room in self.rooms:
-            if target_nickname in self.rooms[room]:
-                await self.rooms[room][target_nickname].send_json(message)
-            if sender_nickname in self.rooms[room]:
-                await self.rooms[room][sender_nickname].send_json(message)
+        if room not in self.rooms:
+            return
+        if target_nickname in self.rooms[room]:
+            if not await self._safe_send(self.rooms[room][target_nickname], message):
+                self.disconnect(self.rooms[room][target_nickname], room, target_nickname)
+        if sender_nickname in self.rooms[room]:
+            if not await self._safe_send(self.rooms[room][sender_nickname], message):
+                self.disconnect(self.rooms[room][sender_nickname], room, sender_nickname)
 
     def get_users_in_room(self, room: str) -> List[str]:
         if room in self.rooms:

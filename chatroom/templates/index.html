@@ -557,6 +557,11 @@
         let ws = null;
         let currentRoom = null;
         let currentNickname = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 10;
+        let reconnectDelay = 1000;
+        let reconnectTimeout = null;
+        let isManualClose = false;
 
         const welcomeScreen = document.getElementById('welcomeScreen');
         const welcomeNickname = document.getElementById('welcomeNickname');
@@ -612,20 +617,60 @@
             messageInput.focus();
         }
 
-        function connectToRoom(room, nickname) {
+        function stopReconnect() {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+        }
+
+        function reconnect() {
+            if (reconnectTimeout) {
+                return;
+            }
+            
+            if (reconnectAttempts >= maxReconnectAttempts) {
+                statusBar.textContent = '连接失败，请刷新页面重试';
+                return;
+            }
+            
+            reconnectAttempts++;
+            statusBar.textContent = `正在重连... (${reconnectAttempts}/${maxReconnectAttempts})`;
+            
+            reconnectTimeout = setTimeout(() => {
+                reconnectTimeout = null;
+                if (currentRoom && currentNickname) {
+                    connectToRoom(currentRoom, currentNickname, true);
+                }
+            }, reconnectDelay);
+        }
+
+        function connectToRoom(room, nickname, isReconnect = false) {
+            stopReconnect();
+            
             if (ws) {
+                isManualClose = true;
                 ws.close();
+                isManualClose = false;
+            }
+
+            if (!isReconnect) {
+                reconnectAttempts = 0;
             }
 
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${encodeURIComponent(room)}/${encodeURIComponent(nickname)}`);
 
             ws.onopen = function() {
+                stopReconnect();
+                reconnectAttempts = 0;
                 statusBar.textContent = '已连接';
                 statusBar.className = 'status-bar connected';
                 messageInput.disabled = false;
                 sendButton.disabled = false;
-                loadRoomMessages(room);
+                if (!isReconnect) {
+                    loadRoomMessages(room);
+                }
             };
 
             ws.onmessage = function(event) {
@@ -653,10 +698,22 @@
             };
 
             ws.onclose = function() {
-                statusBar.textContent = '已断开连接';
-                statusBar.className = 'status-bar disconnected';
-                messageInput.disabled = true;
-                sendButton.disabled = true;
+                if (!isManualClose) {
+                    statusBar.textContent = '已断开连接，正在尝试重连...';
+                    statusBar.className = 'status-bar disconnected';
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    reconnect();
+                } else {
+                    statusBar.textContent = '已断开连接';
+                    statusBar.className = 'status-bar disconnected';
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                }
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
             };
         }
 
