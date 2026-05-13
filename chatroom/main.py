@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 import re
 
-from .database import get_db, get_recent_messages, save_message, get_all_rooms, create_room, get_room_by_name
+from .database import get_db, get_recent_messages, save_message, get_all_rooms, create_room, get_room_by_name, get_private_rooms_for_user
 
 app = FastAPI(title="Real-time Chatroom")
 
@@ -135,10 +135,32 @@ async def get_user_private_rooms(nickname: str, db: Session = Depends(get_db)):
     return {"private_rooms": private_rooms}
 
 
+def is_user_in_private_room(room_name: str, nickname: str) -> bool:
+    if not room_name.startswith('private:'):
+        return True
+    parts = room_name.split(':')
+    if len(parts) != 3:
+        return False
+    return parts[1] == nickname or parts[2] == nickname
+
+
 @app.websocket("/ws/{room}/{nickname}")
 async def websocket_endpoint(websocket: WebSocket, room: str, nickname: str, db: Session = Depends(get_db)):
     db_room = get_room_by_name(db, room)
+    
     if not db_room:
+        if room.startswith('private:'):
+            parts = room.split(':')
+            if len(parts) == 3 and (parts[1] == nickname or parts[2] == nickname):
+                db_room = create_room(db, room, 1)
+            else:
+                await websocket.close()
+                return
+        else:
+            await websocket.close()
+            return
+    
+    if room.startswith('private:') and not is_user_in_private_room(room, nickname):
         await websocket.close()
         return
 
