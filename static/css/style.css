@@ -360,11 +360,15 @@ main {
     min-width: 200px;
     max-width: 280px;
     transition: opacity 0.2s, visibility 0.2s;
-    pointer-events: none;
     top: 100%;
     left: 50%;
     transform: translateX(-50%);
     margin-top: 8px;
+}
+
+.tooltip:hover {
+    visibility: visible;
+    opacity: 1;
 }
 
 .day-cell:hover .tooltip {
@@ -407,4 +411,30 @@ main {
 .tooltip-event-title {
     color: #333;
     word-break: break-word;
+}
+
+a.tooltip-title {
+    display: block;
+    text-decoration: none;
+}
+
+a.tooltip-title:hover {
+    text-decoration: underline;
+}
+
+.tooltip-event-link {
+    text-decoration: none;
+    display: block;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.tooltip-event-link:hover {
+    background: #f0f3ff;
+}
+
+.tooltip-event-link:hover .tooltip-event-title {
+    color: #667eea;
 }
