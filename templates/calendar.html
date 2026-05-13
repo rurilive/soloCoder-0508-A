@@ -24,7 +24,7 @@
         <div class="days-grid">
             {% for day in days %}
                 {% if day %}
-                    <div class="day-cell {% if day.events.count > 0 %}has-events{% endif %}">
+                    <div class="day-cell {% if day.events.count > 0 %}has-events{% endif %}" {% if day.events.count > 0 %}data-tooltip="true"{% endif %}>
                         <a href="{{ url_for('day_events', date=day.date) }}" class="day-number">{{ day.day }}</a>
                         {% if day.events.count > 0 %}
                             <div class="events-preview">
@@ -34,6 +34,19 @@
                                 {% if day.events.count > 2 %}
                                     <div class="more-events">+{{ day.events.count - 2 }}更多</div>
                                 {% endif %}
+                            </div>
+                            <div class="tooltip">
+                                <div class="tooltip-title">{{ day.date }} 事件</div>
+                                <div class="tooltip-events">
+                                    {% for event in day.events.full_events %}
+                                        <div class="tooltip-event">
+                                            {% if event.time %}
+                                                <span class="tooltip-time">{{ event.time }}</span>
+                                            {% endif %}
+                                            <span class="tooltip-event-title">{{ event.title }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
                             </div>
                         {% endif %}
                     </div>

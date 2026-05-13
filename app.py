@@ -56,20 +56,29 @@ def calendar(year=None, month=None):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT date, COUNT(*) as count, GROUP_CONCAT(title, '|||') as titles 
+        SELECT date, time, title 
         FROM events 
         WHERE date LIKE ? 
-        GROUP BY date
+        ORDER BY date, time
     ''', (f'{year}-{month:02d}-%',))
-    events_data = cursor.fetchall()
+    all_events = cursor.fetchall()
     conn.close()
     
     events_by_date = {}
-    for row in events_data:
-        events_by_date[row['date']] = {
-            'count': row['count'],
-            'titles': row['titles'].split('|||')
-        }
+    for event in all_events:
+        date = event['date']
+        if date not in events_by_date:
+            events_by_date[date] = {
+                'count': 0,
+                'titles': [],
+                'full_events': []
+            }
+        events_by_date[date]['count'] += 1
+        events_by_date[date]['titles'].append(event['title'])
+        events_by_date[date]['full_events'].append({
+            'time': event['time'],
+            'title': event['title']
+        })
     
     days = []
     for i in range(start_weekday):
