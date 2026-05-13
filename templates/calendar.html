@@ -36,7 +36,7 @@
                                 {% endif %}
                             </div>
                             <div class="tooltip">
-                                <a href="{{ url_for('day_events', date=day.date) }}" class="tooltip-title">{{ day.date }} 事件 (点击查看详情)</a>
+                                <a href="{{ url_for('day_events', date=day.date) }}" class="tooltip-title">{{ day.date }} 事件</a>
                                 <div class="tooltip-events">
                                     {% for event in day.events.full_events %}
                                         <a href="{{ url_for('day_events', date=day.date) }}" class="tooltip-event-link">
