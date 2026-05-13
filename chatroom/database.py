@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -36,7 +36,35 @@ class Message(Base):
     target_nickname = Column(String, index=True)
 
 
+def migrate_database():
+    with engine.connect() as conn:
+        result = conn.execute(text("PRAGMA table_info(rooms)"))
+        columns = [row[1] for row in result.fetchall()]
+        
+        if 'is_private' not in columns:
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN is_private INTEGER DEFAULT 0"))
+            print("Added is_private column to rooms table")
+        
+        result = conn.execute(text("PRAGMA table_info(messages)"))
+        columns = [row[1] for row in result.fetchall()]
+        
+        if 'is_private' not in columns:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN is_private INTEGER DEFAULT 0"))
+            print("Added is_private column to messages table")
+        
+        if 'target_nickname' not in columns:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN target_nickname VARCHAR"))
+            print("Added target_nickname column to messages table")
+        
+        if 'room_id' not in columns:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN room_id INTEGER"))
+            print("Added room_id column to messages table")
+        
+        conn.commit()
+
+
 Base.metadata.create_all(bind=engine)
+migrate_database()
 
 
 def get_db():
