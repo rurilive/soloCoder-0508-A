@@ -8,12 +8,22 @@ def _create_event_instance(
     event: Dict[str, Any],
     event_date: str,
     is_original: bool,
-    is_cross_day: bool
+    is_cross_day: bool,
+    repeat_index: int = 0,
+    day_offset: int = 0
 ) -> Dict[str, Any]:
     new_event = dict(event)
     new_event['date'] = event_date
     new_event['is_original'] = is_original
     new_event['is_cross_day'] = is_cross_day
+    new_event['repeat_index'] = repeat_index
+    new_event['day_offset'] = day_offset
+    
+    if repeat_index > 0:
+        if is_cross_day:
+            new_event['title'] = f"{event['title']}({repeat_index}-{day_offset + 1})"
+        else:
+            new_event['title'] = f"{event['title']}({repeat_index})"
     
     completion = get_event_completion(event['id'], event_date)
     if completion:
@@ -38,11 +48,13 @@ def generate_cross_day_events(event: Dict[str, Any], start_date: str, end_date: 
     
     is_cross_day = event_start != event_end
     current_date = max(event_start, start_dt)
+    day_offset = 0
     while current_date <= min(event_end, end_dt):
         date_str = current_date.strftime('%Y-%m-%d')
         is_original = (date_str == event['date'])
-        events.append(_create_event_instance(event, date_str, is_original, is_cross_day))
+        events.append(_create_event_instance(event, date_str, is_original, is_cross_day, 0, day_offset))
         current_date += timedelta(days=1)
+        day_offset += 1
     
     return events
 
@@ -52,6 +64,11 @@ def generate_repeated_events(event: Dict[str, Any], start_date: str, end_date: s
         return generate_cross_day_events(event, start_date, end_date)
     
     original_start = datetime.strptime(event['date'], '%Y-%m-%d').date()
+    original_end = original_start
+    if event['end_date']:
+        original_end = datetime.strptime(event['end_date'], '%Y-%m-%d').date()
+    duration_days = (original_end - original_start).days
+    is_cross_day = duration_days > 0
     
     events = []
     current_repeat_date = original_start
@@ -63,12 +80,26 @@ def generate_repeated_events(event: Dict[str, Any], start_date: str, end_date: s
     
     start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
     
+    repeat_index = 0
     while current_repeat_date <= end_limit:
-        if current_repeat_date >= start_dt:
-            date_str = current_repeat_date.strftime('%Y-%m-%d')
-            is_original = (current_repeat_date == original_start)
-            events.append(_create_event_instance(event, date_str, is_original, is_cross_day=False))
+        repeat_end_date = current_repeat_date + timedelta(days=duration_days)
         
+        window_start = max(current_repeat_date, start_dt)
+        window_end = min(repeat_end_date, end_limit)
+        
+        if window_start <= window_end:
+            current_date = window_start
+            day_offset = 0
+            while current_date <= window_end:
+                date_str = current_date.strftime('%Y-%m-%d')
+                is_original = (repeat_index == 0 and current_date == original_start)
+                events.append(_create_event_instance(
+                    event, date_str, is_original, is_cross_day, repeat_index, day_offset
+                ))
+                current_date += timedelta(days=1)
+                day_offset += 1
+        
+        repeat_index += 1
         if event['repeat_type'] == 'daily':
             current_repeat_date += timedelta(days=1)
         elif event['repeat_type'] == 'weekly':
