@@ -9,10 +9,10 @@
 <body>
     <div class="container">
         <header>
-            <h1><a href="{{ url_for('calendar') }}">日程管理</a></h1>
+            <h1><a href="{{ url_for('calendar.calendar') }}">日程管理</a></h1>
             <nav>
-                <a href="{{ url_for('calendar') }}">日历</a>
-                <a href="{{ url_for('add_event') }}">添加事件</a>
+                <a href="{{ url_for('calendar.calendar') }}">日历</a>
+                <a href="{{ url_for('events.add_event') }}">添加事件</a>
             </nav>
         </header>
         <main>

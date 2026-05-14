@@ -5,9 +5,9 @@
 {% block content %}
 <div class="calendar-container">
     <div class="calendar-header">
-        <a href="{{ url_for('calendar', year=prev_year, month=prev_month) }}" class="nav-btn">&larr; 上月</a>
+        <a href="{{ url_for('calendar.calendar', year=prev_year, month=prev_month) }}" class="nav-btn">&larr; 上月</a>
         <h2>{{ month_name }}</h2>
-        <a href="{{ url_for('calendar', year=next_year, month=next_month) }}" class="nav-btn">下月 &rarr;</a>
+        <a href="{{ url_for('calendar.calendar', year=next_year, month=next_month) }}" class="nav-btn">下月 &rarr;</a>
     </div>
     
     <div class="calendar">
@@ -25,7 +25,7 @@
             {% for day in days %}
                 {% if day %}
                     <div class="day-cell {% if day.events.count > 0 %}has-events{% endif %}" {% if day.events.count > 0 %}data-tooltip="true"{% endif %}>
-                        <a href="{{ url_for('day_events', date=day.date) }}" class="day-number">{{ day.day }}</a>
+                        <a href="{{ url_for('events.day_events', date=day.date) }}" class="day-number">{{ day.day }}</a>
                         {% if day.events.count > 0 %}
                             <div class="events-preview">
                                 {% for title in day.events.titles[:2] %}
@@ -36,10 +36,10 @@
                                 {% endif %}
                             </div>
                             <div class="tooltip">
-                                <a href="{{ url_for('day_events', date=day.date) }}" class="tooltip-title">{{ day.date }} 事件</a>
+                                <a href="{{ url_for('events.day_events', date=day.date) }}" class="tooltip-title">{{ day.date }} 事件</a>
                                 <div class="tooltip-events">
                                     {% for event in day.events.full_events %}
-                                        <a href="{{ url_for('event_detail', event_id=event.id) }}" class="tooltip-event-link">
+                                        <a href="{{ url_for('events.event_detail', event_id=event.id) }}" class="tooltip-event-link">
                                             <div class="tooltip-event {% if event.is_completed %}completed{% endif %}">
                                                 {% if event.time %}
                                                     <span class="tooltip-time">{{ event.time }}</span>
@@ -63,7 +63,7 @@
     </div>
     
     <div class="actions">
-        <a href="{{ url_for('add_event') }}" class="btn btn-primary">添加新事件</a>
+        <a href="{{ url_for('events.add_event') }}" class="btn btn-primary">添加新事件</a>
     </div>
 </div>
 {% endblock %}

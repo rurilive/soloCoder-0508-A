@@ -5,7 +5,7 @@
 {% block content %}
 <div class="form-container">
     <div class="form-header">
-        <a href="{{ url_for('calendar') }}" class="back-btn">&larr; 返回</a>
+        <a href="{{ url_for('calendar.calendar') }}" class="back-btn">&larr; 返回</a>
         <h2>添加新事件</h2>
     </div>
     
@@ -72,7 +72,7 @@
         
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">保存事件</button>
-            <a href="{{ url_for('calendar') }}" class="btn btn-secondary">取消</a>
+            <a href="{{ url_for('calendar.calendar') }}" class="btn btn-secondary">取消</a>
         </div>
     </form>
 </div>

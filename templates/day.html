@@ -5,9 +5,9 @@
 {% block content %}
 <div class="day-container">
     <div class="day-header">
-        <a href="{{ url_for('calendar') }}" class="back-btn">&larr; 返回日历</a>
+        <a href="{{ url_for('calendar.calendar') }}" class="back-btn">&larr; 返回日历</a>
         <h2>{{ date }}</h2>
-        <a href="{{ url_for('add_event', date=date, time=current_time) }}" class="btn btn-primary">添加事件</a>
+        <a href="{{ url_for('events.add_event', date=date, time=current_time) }}" class="btn btn-primary">添加事件</a>
     </div>
     
     {% if events %}
@@ -65,14 +65,14 @@
                     {% endif %}
                     
                     <div class="event-actions">
-                        <a href="{{ url_for('event_detail', event_id=event['id']) }}" class="btn btn-info">详情</a>
+                        <a href="{{ url_for('events.event_detail', event_id=event['id']) }}" class="btn btn-info">详情</a>
                         {% if not event['is_completed'] %}
                             <button onclick="showCompleteForm({{ event['id'] }}, '{{ event['date'] }}')" class="btn btn-success">完成</button>
                         {% else %}
-                            <a href="{{ url_for('uncomplete_event', event_id=event['id'], date=event['date']) }}" class="btn btn-secondary">取消完成</a>
+                            <a href="{{ url_for('events.uncomplete', event_id=event['id'], date=event['date']) }}" class="btn btn-secondary">取消完成</a>
                         {% endif %}
-                        <a href="{{ url_for('edit_event', event_id=event['id']) }}" class="btn btn-secondary">编辑</a>
-                        <a href="{{ url_for('delete_event', event_id=event['id']) }}" class="btn btn-danger" onclick="return confirm('确定要删除这个事件吗？')">删除</a>
+                        <a href="{{ url_for('events.edit_event', event_id=event['id']) }}" class="btn btn-secondary">编辑</a>
+                        <a href="{{ url_for('events.delete', event_id=event['id']) }}" class="btn btn-danger" onclick="return confirm('确定要删除这个事件吗？')">删除</a>
                     </div>
                 </div>
             {% endfor %}
@@ -80,7 +80,7 @@
     {% else %}
         <div class="no-events">
             <p>今天没有安排事件。</p>
-            <a href="{{ url_for('add_event', date=date, time=current_time) }}" class="btn btn-primary">添加第一个事件</a>
+            <a href="{{ url_for('events.add_event', date=date, time=current_time) }}" class="btn btn-primary">添加第一个事件</a>
         </div>
     {% endif %}
 </div>
