@@ -36,12 +36,33 @@ def init_db():
     conn.close()
 
 
+def generate_cross_day_events(event, start_date, end_date):
+    events = []
+    event_start = datetime.strptime(event['date'], '%Y-%m-%d').date()
+    event_end = event_start
+    if event['end_date']:
+        event_end = datetime.strptime(event['end_date'], '%Y-%m-%d').date()
+    
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    current_date = max(event_start, start_dt)
+    while current_date <= min(event_end, end_dt):
+        date_str = current_date.strftime('%Y-%m-%d')
+        new_event = dict(event)
+        new_event['date'] = date_str
+        new_event['is_original'] = (date_str == event['date'])
+        new_event['is_cross_day'] = event_start != event_end
+        events.append(new_event)
+        current_date += timedelta(days=1)
+    
+    return events
+
 def generate_repeated_events(event, start_date, end_date):
     events = []
+    
     if event['repeat_type'] == 'none':
-        if start_date <= event['date'] <= end_date:
-            events.append(dict(event))
-        return events
+        return generate_cross_day_events(event, start_date, end_date)
     
     current_date = datetime.strptime(event['date'], '%Y-%m-%d').date()
     end_limit = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -53,12 +74,12 @@ def generate_repeated_events(event, start_date, end_date):
     start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
     
     while current_date <= end_limit:
-        date_str = current_date.strftime('%Y-%m-%d')
         if current_date >= start_dt:
-            new_event = dict(event)
-            new_event['date'] = date_str
-            new_event['is_original'] = (date_str == event['date'])
-            events.append(new_event)
+            temp_event = dict(event)
+            temp_event['date'] = current_date.strftime('%Y-%m-%d')
+            temp_event['is_original'] = (current_date == datetime.strptime(event['date'], '%Y-%m-%d').date())
+            cross_day_events = generate_cross_day_events(temp_event, start_date, end_date)
+            events.extend(cross_day_events)
         
         if event['repeat_type'] == 'daily':
             current_date += timedelta(days=1)

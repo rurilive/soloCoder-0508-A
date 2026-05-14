@@ -17,6 +17,9 @@
                     <div class="event-time">
                         <div class="event-title-group">
                             <h3>{{ event['title'] }}</h3>
+                            {% if event['is_cross_day'] %}
+                                <span class="cross-day-badge">跨天</span>
+                            {% endif %}
                             {% if event['repeat_type'] != 'none' %}
                                 <span class="repeat-badge">
                                     {% if event['repeat_type'] == 'daily' %}每天{% endif %}

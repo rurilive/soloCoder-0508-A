@@ -491,6 +491,15 @@ a.tooltip-title:hover {
     font-weight: 500;
 }
 
+.cross-day-badge {
+    background: #17a2b8;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
 .event-meta {
     display: flex;
     flex-wrap: wrap;
