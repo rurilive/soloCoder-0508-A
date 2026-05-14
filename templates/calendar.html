@@ -39,12 +39,15 @@
                                 <a href="{{ url_for('day_events', date=day.date) }}" class="tooltip-title">{{ day.date }} 事件</a>
                                 <div class="tooltip-events">
                                     {% for event in day.events.full_events %}
-                                        <a href="{{ url_for('day_events', date=day.date) }}" class="tooltip-event-link">
-                                            <div class="tooltip-event">
+                                        <a href="{{ url_for('event_detail', event_id=event.id) }}" class="tooltip-event-link">
+                                            <div class="tooltip-event {% if event.is_completed %}completed{% endif %}">
                                                 {% if event.time %}
                                                     <span class="tooltip-time">{{ event.time }}</span>
                                                 {% endif %}
                                                 <span class="tooltip-event-title">{{ event.title }}</span>
+                                                {% if event.is_completed %}
+                                                    <span class="tooltip-completed-icon">✓</span>
+                                                {% endif %}
                                             </div>
                                         </a>
                                     {% endfor %}

@@ -197,7 +197,8 @@ def calendar(year=None, month=None):
                 'time': rep_event['time'],
                 'title': rep_event['title'],
                 'is_completed': rep_event['is_completed'],
-                'repeat_type': rep_event['repeat_type']
+                'repeat_type': rep_event['repeat_type'],
+                'id': rep_event['id']
             })
     
     days = []
