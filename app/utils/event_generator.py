@@ -4,6 +4,28 @@ from typing import Any, Dict, List
 from app.models.event import get_event_completion
 
 
+def _create_event_instance(
+    event: Dict[str, Any],
+    event_date: str,
+    is_original: bool,
+    is_cross_day: bool
+) -> Dict[str, Any]:
+    new_event = dict(event)
+    new_event['date'] = event_date
+    new_event['is_original'] = is_original
+    new_event['is_cross_day'] = is_cross_day
+    
+    completion = get_event_completion(event['id'], event_date)
+    if completion:
+        new_event['is_completed'] = 1
+        new_event['completion_note'] = completion['completion_note']
+    else:
+        new_event['is_completed'] = 0
+        new_event['completion_note'] = None
+    
+    return new_event
+
+
 def generate_cross_day_events(event: Dict[str, Any], start_date: str, end_date: str) -> List[Dict[str, Any]]:
     events = []
     event_start = datetime.strptime(event['date'], '%Y-%m-%d').date()
@@ -14,23 +36,12 @@ def generate_cross_day_events(event: Dict[str, Any], start_date: str, end_date: 
     start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
     end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
     
+    is_cross_day = event_start != event_end
     current_date = max(event_start, start_dt)
     while current_date <= min(event_end, end_dt):
         date_str = current_date.strftime('%Y-%m-%d')
-        new_event = dict(event)
-        new_event['date'] = date_str
-        new_event['is_original'] = (date_str == event['date'])
-        new_event['is_cross_day'] = event_start != event_end
-        
-        completion = get_event_completion(event['id'], date_str)
-        if completion:
-            new_event['is_completed'] = 1
-            new_event['completion_note'] = completion['completion_note']
-        else:
-            new_event['is_completed'] = 0
-            new_event['completion_note'] = None
-        
-        events.append(new_event)
+        is_original = (date_str == event['date'])
+        events.append(_create_event_instance(event, date_str, is_original, is_cross_day))
         current_date += timedelta(days=1)
     
     return events
@@ -40,8 +51,10 @@ def generate_repeated_events(event: Dict[str, Any], start_date: str, end_date: s
     if event['repeat_type'] == 'none':
         return generate_cross_day_events(event, start_date, end_date)
     
+    original_start = datetime.strptime(event['date'], '%Y-%m-%d').date()
+    
     events = []
-    current_date = datetime.strptime(event['date'], '%Y-%m-%d').date()
+    current_repeat_date = original_start
     end_limit = datetime.strptime(end_date, '%Y-%m-%d').date()
     
     if event['repeat_end_date']:
@@ -50,28 +63,26 @@ def generate_repeated_events(event: Dict[str, Any], start_date: str, end_date: s
     
     start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
     
-    while current_date <= end_limit:
-        if current_date >= start_dt:
-            temp_event = dict(event)
-            temp_event['date'] = current_date.strftime('%Y-%m-%d')
-            temp_event['is_original'] = (current_date == datetime.strptime(event['date'], '%Y-%m-%d').date())
-            cross_day_events = generate_cross_day_events(temp_event, start_date, end_date)
-            events.extend(cross_day_events)
+    while current_repeat_date <= end_limit:
+        if current_repeat_date >= start_dt:
+            date_str = current_repeat_date.strftime('%Y-%m-%d')
+            is_original = (current_repeat_date == original_start)
+            events.append(_create_event_instance(event, date_str, is_original, is_cross_day=False))
         
         if event['repeat_type'] == 'daily':
-            current_date += timedelta(days=1)
+            current_repeat_date += timedelta(days=1)
         elif event['repeat_type'] == 'weekly':
-            current_date += timedelta(weeks=1)
+            current_repeat_date += timedelta(weeks=1)
         elif event['repeat_type'] == 'monthly':
             try:
-                if current_date.month == 12:
-                    current_date = current_date.replace(year=current_date.year + 1, month=1)
+                if current_repeat_date.month == 12:
+                    current_repeat_date = current_repeat_date.replace(year=current_repeat_date.year + 1, month=1)
                 else:
-                    current_date = current_date.replace(month=current_date.month + 1)
+                    current_repeat_date = current_repeat_date.replace(month=current_repeat_date.month + 1)
             except ValueError:
                 while True:
-                    current_date += timedelta(days=1)
-                    if current_date.day == 1:
+                    current_repeat_date += timedelta(days=1)
+                    if current_repeat_date.day == 1:
                         break
     
     return events
