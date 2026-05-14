@@ -65,10 +65,11 @@
                     {% endif %}
                     
                     <div class="event-actions">
+                        <a href="{{ url_for('event_detail', event_id=event['id']) }}" class="btn btn-info">详情</a>
                         {% if not event['is_completed'] %}
-                            <button onclick="showCompleteForm({{ event['id'] }})" class="btn btn-success">完成</button>
+                            <button onclick="showCompleteForm({{ event['id'] }}, '{{ event['date'] }}')" class="btn btn-success">完成</button>
                         {% else %}
-                            <a href="{{ url_for('uncomplete_event', event_id=event['id']) }}" class="btn btn-secondary">取消完成</a>
+                            <a href="{{ url_for('uncomplete_event', event_id=event['id'], date=event['date']) }}" class="btn btn-secondary">取消完成</a>
                         {% endif %}
                         <a href="{{ url_for('edit_event', event_id=event['id']) }}" class="btn btn-secondary">编辑</a>
                         <a href="{{ url_for('delete_event', event_id=event['id']) }}" class="btn btn-danger" onclick="return confirm('确定要删除这个事件吗？')">删除</a>
@@ -101,10 +102,10 @@
 </div>
 
 <script>
-function showCompleteForm(eventId) {
+function showCompleteForm(eventId, date) {
     const modal = document.getElementById('completeModal');
     const form = document.getElementById('completeForm');
-    form.action = '/complete/' + eventId;
+    form.action = '/complete/' + eventId + '/' + date;
     modal.style.display = 'flex';
 }
 

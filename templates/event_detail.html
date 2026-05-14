@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event['title'] }} - 日程详情{% endblock %}
+
+{% block content %}
+<div class="event-detail-container">
+    <div class="detail-header">
+        <a href="{{ url_for('day_events', date=event['date']) }}" class="back-btn">&larr; 返回</a>
+        <h2>{{ event['title'] }}</h2>
+        <div class="detail-actions">
+            <a href="{{ url_for('edit_event', event_id=event['id']) }}" class="btn btn-secondary">编辑</a>
+            <a href="{{ url_for('delete_event', event_id=event['id']) }}" class="btn btn-danger" onclick="return confirm('确定要删除这个事件吗？')">删除</a>
+        </div>
+    </div>
+
+    <div class="detail-content">
+        <div class="detail-section">
+            <h3>基本信息</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">开始日期</span>
+                    <span class="info-value">{{ event['date'] }}</span>
+                </div>
+                {% if event['end_date'] %}
+                <div class="info-item">
+                    <span class="info-label">结束日期</span>
+                    <span class="info-value">{{ event['end_date'] }}</span>
+                </div>
+                {% endif %}
+                {% if event['time'] %}
+                <div class="info-item">
+                    <span class="info-label">时间</span>
+                    <span class="info-value">{{ event['time'] }}</span>
+                </div>
+                {% endif %}
+                {% if event['duration'] > 0 %}
+                <div class="info-item">
+                    <span class="info-label">持续时间</span>
+                    <span class="info-value">{{ event['duration'] }} 分钟</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">重复类型</span>
+                    <span class="info-value">
+                        {% if event['repeat_type'] == 'none' %}不重复{% endif %}
+                        {% if event['repeat_type'] == 'daily' %}每天{% endif %}
+                        {% if event['repeat_type'] == 'weekly' %}每周{% endif %}
+                        {% if event['repeat_type'] == 'monthly' %}每月{% endif %}
+                    </span>
+                </div>
+                {% if event['repeat_end_date'] %}
+                <div class="info-item">
+                    <span class="info-label">重复结束日期</span>
+                    <span class="info-value">{{ event['repeat_end_date'] }}</span>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <span class="info-label">提醒设置</span>
+                    <span class="info-value">
+                        {% if event['reminder_type'] == 'none' %}不提醒{% endif %}
+                        {% if event['reminder_type'] == 'minutes' %}{{ event['reminder_value'] }} 分钟前{% endif %}
+                        {% if event['reminder_type'] == 'hours' %}{{ event['reminder_value'] }} 小时前{% endif %}
+                        {% if event['reminder_type'] == 'days' %}{{ event['reminder_value'] }} 天前{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {% if event['description'] %}
+        <div class="detail-section">
+            <h3>描述</h3>
+            <p class="description-text">{{ event['description'] }}</p>
+        </div>
+        {% endif %}
+
+        {% if event['repeat_type'] != 'none' or event['end_date'] %}
+        <div class="detail-section">
+            <h3>完成情况统计</h3>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (completed_days / total_days * 100) if total_days > 0 else 0 }}%"></div>
+                </div>
+                <div class="progress-text">
+                    {{ completed_days }} / {{ total_days }} 天已完成
+                    ({{ "%.1f"|format(completed_days / total_days * 100 if total_days > 0 else 0) }}%)
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if completions %}
+        <div class="detail-section">
+            <h3>完成记录</h3>
+            <div class="completions-list">
+                {% for completion in completions %}
+                <div class="completion-item">
+                    <div class="completion-date">
+                        <span class="date-icon">✅</span>
+                        <span class="date-text">{{ completion['completion_date'] }}</span>
+                    </div>
+                    {% if completion['completion_note'] %}
+                    <div class="completion-note-text">{{ completion['completion_note'] }}</div>
+                    {% endif %}
+                    <div class="completion-time">完成于 {{ completion['completed_at'] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

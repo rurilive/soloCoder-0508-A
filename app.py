@@ -32,8 +32,44 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS event_completions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER NOT NULL,
+            completion_date TEXT NOT NULL,
+            completion_note TEXT,
+            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE,
+            UNIQUE(event_id, completion_date)
+        )
+    ''')
     conn.commit()
     conn.close()
+
+
+def get_event_completion(event_id, date):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM event_completions 
+        WHERE event_id = ? AND completion_date = ?
+    ''', (event_id, date))
+    completion = cursor.fetchone()
+    conn.close()
+    return dict(completion) if completion else None
+
+
+def get_all_completions_for_event(event_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM event_completions 
+        WHERE event_id = ? 
+        ORDER BY completion_date DESC
+    ''', (event_id,))
+    completions = cursor.fetchall()
+    conn.close()
+    return [dict(c) for c in completions]
 
 
 def generate_cross_day_events(event, start_date, end_date):
@@ -53,6 +89,15 @@ def generate_cross_day_events(event, start_date, end_date):
         new_event['date'] = date_str
         new_event['is_original'] = (date_str == event['date'])
         new_event['is_cross_day'] = event_start != event_end
+        
+        completion = get_event_completion(event['id'], date_str)
+        if completion:
+            new_event['is_completed'] = 1
+            new_event['completion_note'] = completion['completion_note']
+        else:
+            new_event['is_completed'] = 0
+            new_event['completion_note'] = None
+        
         events.append(new_event)
         current_date += timedelta(days=1)
     
@@ -267,50 +312,95 @@ def edit_event(event_id):
     return render_template('edit_event.html', event=event)
 
 
-@app.route('/complete/<int:event_id>', methods=['POST'])
-def complete_event(event_id):
+@app.route('/complete/<int:event_id>/<date>', methods=['POST'])
+def complete_event(event_id, date):
     completion_note = request.form.get('completion_note', '')
     
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT date FROM events WHERE id = ?', (event_id,))
+    
+    cursor.execute('SELECT id FROM events WHERE id = ?', (event_id,))
     event = cursor.fetchone()
     
     if event:
         cursor.execute('''
-            UPDATE events 
-            SET is_completed = 1, completion_note = ? 
-            WHERE id = ?
-        ''', (completion_note, event_id))
+            INSERT OR REPLACE INTO event_completions (event_id, completion_date, completion_note)
+            VALUES (?, ?, ?)
+        ''', (event_id, date, completion_note))
         conn.commit()
-        date = event['date']
-    else:
-        date = datetime.now().strftime('%Y-%m-%d')
     
     conn.close()
     return redirect(url_for('day_events', date=date))
 
 
-@app.route('/uncomplete/<int:event_id>')
-def uncomplete_event(event_id):
+@app.route('/uncomplete/<int:event_id>/<date>')
+def uncomplete_event(event_id, date):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT date FROM events WHERE id = ?', (event_id,))
+    
+    cursor.execute('DELETE FROM event_completions WHERE event_id = ? AND completion_date = ?', 
+                   (event_id, date))
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('day_events', date=date))
+
+
+@app.route('/event/<int:event_id>')
+def event_detail(event_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM events WHERE id = ?', (event_id,))
     event = cursor.fetchone()
     
-    if event:
-        cursor.execute('''
-            UPDATE events 
-            SET is_completed = 0, completion_note = NULL 
-            WHERE id = ?
-        ''', (event_id,))
-        conn.commit()
-        date = event['date']
+    if not event:
+        conn.close()
+        return redirect(url_for('calendar'))
+    
+    event = dict(event)
+    completions = get_all_completions_for_event(event_id)
+    
+    now = datetime.now().date()
+    event_start = datetime.strptime(event['date'], '%Y-%m-%d').date()
+    repeat_end = None
+    if event['repeat_end_date']:
+        repeat_end = datetime.strptime(event['repeat_end_date'], '%Y-%m-%d').date()
+    
+    total_days = 0
+    completed_days = len(completions)
+    
+    if event['repeat_type'] != 'none':
+        end_limit = repeat_end or (now + timedelta(days=365))
+        current = event_start
+        while current <= end_limit:
+            total_days += 1
+            if event['repeat_type'] == 'daily':
+                current += timedelta(days=1)
+            elif event['repeat_type'] == 'weekly':
+                current += timedelta(weeks=1)
+            elif event['repeat_type'] == 'monthly':
+                try:
+                    if current.month == 12:
+                        current = current.replace(year=current.year + 1, month=1)
+                    else:
+                        current = current.replace(month=current.month + 1)
+                except ValueError:
+                    while True:
+                        current += timedelta(days=1)
+                        if current.day == 1:
+                            break
+    elif event['end_date']:
+        event_end = datetime.strptime(event['end_date'], '%Y-%m-%d').date()
+        total_days = (event_end - event_start).days + 1
     else:
-        date = datetime.now().strftime('%Y-%m-%d')
+        total_days = 1
     
     conn.close()
-    return redirect(url_for('day_events', date=date))
+    return render_template('event_detail.html', 
+                         event=event, 
+                         completions=completions,
+                         total_days=total_days,
+                         completed_days=completed_days)
 
 
 @app.route('/api/reminders')

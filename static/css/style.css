@@ -537,6 +537,15 @@ a.tooltip-title:hover {
     background: #218838;
 }
 
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
 .event-actions {
     display: flex;
     gap: 8px;
@@ -631,4 +640,149 @@ a.tooltip-title:hover {
 
 .notification-close:hover {
     color: #333;
+}
+
+.event-detail-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.detail-header h2 {
+    color: #333;
+    font-size: 28px;
+    margin: 0;
+}
+
+.detail-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.detail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.detail-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 25px;
+}
+
+.detail-section h3 {
+    color: #333;
+    font-size: 18px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.info-label {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 16px;
+    color: #333;
+    font-weight: 600;
+}
+
+.description-text {
+    color: #333;
+    line-height: 1.8;
+    font-size: 16px;
+    margin: 0;
+}
+
+.progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.progress-bar {
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.completions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.completion-item {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    border-left: 3px solid #28a745;
+}
+
+.completion-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.date-icon {
+    font-size: 18px;
+}
+
+.date-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.completion-note-text {
+    color: #666;
+    margin-bottom: 8px;
+    padding-left: 26px;
+}
+
+.completion-time {
+    font-size: 12px;
+    color: #999;
+    padding-left: 26px;
 }
