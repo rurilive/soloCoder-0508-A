@@ -15,6 +15,24 @@
             <input type="text" id="title" name="title" required>
         </div>
         
+        <div class="form-group">
+            <label>事件类型 *</label>
+            <div class="event-type-options">
+                <label class="event-type-option">
+                    <input type="radio" name="event_type" value="single" checked onchange="updateForm()">
+                    <span>一次性事件</span>
+                </label>
+                <label class="event-type-option">
+                    <input type="radio" name="event_type" value="cross_day" onchange="updateForm()">
+                    <span>跨天事件</span>
+                </label>
+                <label class="event-type-option">
+                    <input type="radio" name="event_type" value="repeat" onchange="updateForm()">
+                    <span>重复事件</span>
+                </label>
+            </div>
+        </div>
+        
         <div class="form-row">
             <div class="form-group">
                 <label for="date">开始日期 *</label>
@@ -27,16 +45,14 @@
             </div>
         </div>
         
-        <div class="form-row">
-            <div class="form-group">
-                <label for="duration">持续时间（分钟）</label>
-                <input type="number" id="duration" name="duration" min="0" value="0">
-            </div>
-            
-            <div class="form-group">
-                <label for="end_date">结束日期（跨天事件）</label>
-                <input type="date" id="end_date" name="end_date">
-            </div>
+        <div class="form-group">
+            <label for="duration">持续时间（分钟）</label>
+            <input type="number" id="duration" name="duration" min="0" value="0">
+        </div>
+        
+        <div id="cross_day_section" class="form-group" style="display: none;">
+            <label for="end_date">结束日期 * (跨天事件)</label>
+            <input type="date" id="end_date" name="end_date">
         </div>
         
         <div class="form-group">
@@ -52,16 +68,15 @@
             </div>
         </div>
         
-        <div class="form-group">
-            <label>重复设置</label>
+        <div id="repeat_section" class="form-group" style="display: none;">
+            <label>重复设置 *</label>
             <div class="repeat-settings">
                 <select id="repeat_type" name="repeat_type">
-                    <option value="none">不重复</option>
                     <option value="daily">每天</option>
                     <option value="weekly">每周</option>
                     <option value="monthly">每月</option>
                 </select>
-                <input type="date" id="repeat_end_date" name="repeat_end_date" placeholder="重复结束日期">
+                <input type="date" id="repeat_end_date" name="repeat_end_date" placeholder="重复结束日期 *">
             </div>
         </div>
         
@@ -76,4 +91,31 @@
         </div>
     </form>
 </div>
+
+<script>
+function updateForm() {
+    const eventType = document.querySelector('input[name="event_type"]:checked').value;
+    const crossDaySection = document.getElementById('cross_day_section');
+    const repeatSection = document.getElementById('repeat_section');
+    const endDateInput = document.getElementById('end_date');
+    const repeatEndDateInput = document.getElementById('repeat_end_date');
+    
+    crossDaySection.style.display = 'none';
+    repeatSection.style.display = 'none';
+    endDateInput.removeAttribute('required');
+    repeatEndDateInput.removeAttribute('required');
+    
+    if (eventType === 'cross_day') {
+        crossDaySection.style.display = 'block';
+        endDateInput.setAttribute('required', 'required');
+    } else if (eventType === 'repeat') {
+        repeatSection.style.display = 'block';
+        repeatEndDateInput.setAttribute('required', 'required');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateForm();
+});
+</script>
 {% endblock %}

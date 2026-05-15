@@ -34,11 +34,19 @@ def add_event():
         time = request.form.get('time', '')
         description = request.form.get('description', '')
         duration = int(request.form.get('duration', 0))
-        end_date = request.form.get('end_date', '') or None
+        event_type = request.form.get('event_type', 'single')
         reminder_type = request.form.get('reminder_type', 'none')
         reminder_value = int(request.form.get('reminder_value', 0))
-        repeat_type = request.form.get('repeat_type', 'none')
-        repeat_end_date = request.form.get('repeat_end_date', '') or None
+        
+        end_date = None
+        repeat_type = 'none'
+        repeat_end_date = None
+        
+        if event_type == 'cross_day':
+            end_date = request.form.get('end_date', '') or None
+        elif event_type == 'repeat':
+            repeat_type = request.form.get('repeat_type', 'daily')
+            repeat_end_date = request.form.get('repeat_end_date', '') or None
         
         create_event(
             title=title,
@@ -68,11 +76,19 @@ def edit_event(event_id: int):
         time = request.form.get('time', '')
         description = request.form.get('description', '')
         duration = int(request.form.get('duration', 0))
-        end_date = request.form.get('end_date', '') or None
+        event_type = request.form.get('event_type', 'single')
         reminder_type = request.form.get('reminder_type', 'none')
         reminder_value = int(request.form.get('reminder_value', 0))
-        repeat_type = request.form.get('repeat_type', 'none')
-        repeat_end_date = request.form.get('repeat_end_date', '') or None
+        
+        end_date = None
+        repeat_type = 'none'
+        repeat_end_date = None
+        
+        if event_type == 'cross_day':
+            end_date = request.form.get('end_date', '') or None
+        elif event_type == 'repeat':
+            repeat_type = request.form.get('repeat_type', 'daily')
+            repeat_end_date = request.form.get('repeat_end_date', '') or None
         
         update_event(
             event_id=event_id,
