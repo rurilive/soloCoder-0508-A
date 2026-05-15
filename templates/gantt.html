@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+
+{% block title %}甘特图 - 日程管理{% endblock %}
+
+{% block content %}
+<div class="gantt-container">
+    <div class="gantt-header">
+        <h2>📊 甘特图视图</h2>
+        <div class="gantt-controls">
+            <button id="zoomOut" class="btn btn-secondary">-</button>
+            <span id="zoomLevel">100%</span>
+            <button id="zoomIn" class="btn btn-secondary">+</button>
+            <button id="todayBtn" class="btn btn-primary">今天</button>
+            <button id="prevWeek" class="btn btn-secondary">← 上周</button>
+            <button id="nextWeek" class="btn btn-secondary">下周 →</button>
+        </div>
+    </div>
+
+    <div class="gantt-wrapper" id="ganttWrapper">
+        <div class="gantt-sidebar">
+            <div class="sidebar-header">任务列表</div>
+            <div class="sidebar-content" id="sidebarContent"></div>
+        </div>
+        
+        <div class="gantt-chart-container" id="chartContainer">
+            <div class="chart-timeline" id="chartTimeline"></div>
+            <div class="chart-content" id="chartContent"></div>
+        </div>
+    </div>
+
+    <div class="event-modal" id="eventModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">事件详情</h3>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="eventDetails"></div>
+                <div class="notes-section">
+                    <h4>📝 事件备注 (区块链存储)</h4>
+                    <div class="add-note">
+                        <textarea id="noteInput" placeholder="添加新备注..."></textarea>
+                        <button id="addNoteBtn" class="btn btn-primary">添加备注</button>
+                    </div>
+                    <div class="notes-list" id="notesList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentStartDate = new Date('{{ start_date }}');
+let currentEndDate = new Date('{{ end_date }}');
+let today = new Date('{{ today }}');
+let zoomLevel = 1;
+let events = [];
+let selectedEventId = null;
+
+const colors = [
+    '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
+    '#1abc9c', '#34495e', '#e67e22', '#16a085', '#27ae60'
+];
+
+function initGantt() {
+    loadEvents();
+    setupEventListeners();
+}
+
+function loadEvents() {
+    const startStr = formatDate(currentStartDate);
+    const endStr = formatDate(currentEndDate);
+    
+    fetch(`/api/gantt/events?start_date=${startStr}&end_date=${endStr}`)
+        .then(response => response.json())
+        .then(data => {
+            events = data.events;
+            renderGantt();
+        })
+        .catch(error => console.error('加载事件失败:', error));
+}
+
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function renderGantt() {
+    renderTimeline();
+    renderSidebar();
+    renderChart();
+}
+
+function renderTimeline() {
+    const timeline = document.getElementById('chartTimeline');
+    timeline.innerHTML = '';
+    
+    const dayWidth = 80 * zoomLevel;
+    const totalDays = Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)) + 1;
+    
+    timeline.style.width = `${totalDays * dayWidth}px`;
+    
+    let currentDate = new Date(currentStartDate);
+    let monthHeaders = document.createElement('div');
+    monthHeaders.className = 'month-headers';
+    
+    let dayHeaders = document.createElement('div');
+    dayHeaders.className = 'day-headers';
+    
+    let currentMonth = -1;
+    let monthCell = null;
+    let monthDayCount = 0;
+    
+    for (let i = 0; i < totalDays; i++) {
+        const dateStr = formatDate(currentDate);
+        const isToday = dateStr === formatDate(today);
+        const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+        
+        if (currentDate.getMonth() !== currentMonth) {
+            if (monthCell) {
+                monthCell.style.width = `${monthDayCount * dayWidth}px`;
+            }
+            currentMonth = currentDate.getMonth();
+            monthDayCount = 0;
+            
+            monthCell = document.createElement('div');
+            monthCell.className = 'month-header';
+            monthCell.textContent = currentDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
+            monthHeaders.appendChild(monthCell);
+        }
+        monthDayCount++;
+        
+        const dayCell = document.createElement('div');
+        dayCell.className = `day-header ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''}`;
+        dayCell.style.width = `${dayWidth}px`;
+        dayCell.innerHTML = `<span class="day-name">${['日', '一', '二', '三', '四', '五', '六')[currentDate.getDay()]}</span>
+            <span class="day-number">${currentDate.getDate()}</span>`;
+        dayHeaders.appendChild(dayCell);
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    if (monthCell) {
+        monthCell.style.width = `${monthDayCount * dayWidth}px`;
+    }
+    
+    timeline.appendChild(monthHeaders);
+    timeline.appendChild(dayHeaders);
+}
+
+function renderSidebar() {
+    const sidebar = document.getElementById('sidebarContent');
+    sidebar.innerHTML = '';
+    
+    if (events.length === 0) {
+        sidebar.innerHTML = '<div class="no-events">暂无事件</div>';
+        return;
+    }
+    
+    events.forEach((event, index) => {
+        const item = document.createElement('div');
+        item.className = 'sidebar-item';
+        item.style.borderLeftColor = colors[index % colors.length];
+        item.innerHTML = `
+            <div class="event-title">${event.title}</div>
+            <div class="event-date">${event.start} ~ ${event.end}</div>
+        `;
+        item.onclick = () => openEventModal(event.id);
+        sidebar.appendChild(item);
+    });
+}
+
+function renderChart() {
+    const chart = document.getElementById('chartContent');
+    chart.innerHTML = '';
+    
+    const dayWidth = 80 * zoomLevel;
+    const totalDays = Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)) + 1;
+    
+    chart.style.width = `${totalDays * dayWidth}px`;
+    
+    if (events.length === 0) {
+        chart.innerHTML = '<div class="no-events-chart">暂无事件，请添加新事件</div>';
+        return;
+    }
+    
+    events.forEach((event, index) => {
+        const row = document.createElement('div');
+        row.className = 'gantt-row';
+        
+        const startDate = new Date(event.start);
+        const endDate = new Date(event.end);
+        const startOffset = (startDate - currentStartDate) / (1000 * 60 * 60 * 24);
+        const duration = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
+        
+        const bar = document.createElement('div');
+        bar.className = `gantt-bar ${event.is_completed ? 'completed' : ''}`;
+        bar.style.backgroundColor = colors[index % colors.length];
+        bar.style.left = `${startOffset * dayWidth}px`;
+        bar.style.width = `${duration * dayWidth - 4}px`;
+        bar.innerHTML = `<span class="bar-title">${event.title}</span>`;
+        bar.onclick = () => openEventModal(event.id);
+        
+        row.appendChild(bar);
+        chart.appendChild(row);
+    });
+    
+    const todayLine = document.createElement('div');
+    todayLine.className = 'today-line';
+    const todayOffset = (today - currentStartDate) / (1000 * 60 * 60 * 24);
+    todayLine.style.left = `${todayOffset * dayWidth + dayWidth / 2}px`;
+    chart.appendChild(todayLine);
+}
+
+function openEventModal(eventId) {
+    selectedEventId = eventId;
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+    
+    const details = document.getElementById('eventDetails');
+    details.innerHTML = `
+        <div class="detail-item">
+            <strong>标题:</strong> ${event.title}
+        </div>
+        <div class="detail-item">
+            <strong>开始日期:</strong> ${event.start}
+        </div>
+        <div class="detail-item">
+            <strong>结束日期:</strong> ${event.end}
+        </div>
+        <div class="detail-item">
+            <strong>描述:</strong> ${event.description || '无'}
+        </div>
+        <div class="detail-item">
+            <strong>状态:</strong> ${event.is_completed ? '已完成' : '进行中'}
+        </div>
+    `;
+    
+    loadEventNotes(eventId);
+    document.getElementById('eventModal').style.display = 'flex';
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').style.display = 'none';
+    selectedEventId = null;
+}
+
+function loadEventNotes(eventId) {
+    fetch(`/api/events/${eventId}/notes`)
+        .then(response => response.json())
+        .then(data => {
+            const notesList = document.getElementById('notesList');
+            notesList.innerHTML = '';
+            
+            if (data.notes.length === 0) {
+                notesList.innerHTML = '<div class="no-notes">暂无备注</div>';
+                return;
+            }
+            
+            data.notes.forEach(note => {
+                const noteEl = document.createElement('div');
+                noteEl.className = 'note-item';
+                noteEl.innerHTML = `
+                    <div class="note-content">${note.note}</div>
+                    <div class="note-meta">
+                        <span class="note-author">${note.created_by}</span>
+                        <span class="note-time">${new Date(note.created_at).toLocaleString('zh-CN')}</span>
+                        <span class="note-block">区块 #${note.block_index}</span>
+                    </div>
+                `;
+                notesList.appendChild(noteEl);
+            });
+        })
+        .catch(error => console.error('加载备注失败:', error));
+}
+
+function addNote() {
+    const noteInput = document.getElementById('noteInput');
+    const note = noteInput.value.trim();
+    
+    if (!note || !selectedEventId) return;
+    
+    fetch(`/api/events/${selectedEventId}/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ note: note, created_by: 'user' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            noteInput.value = '';
+            loadEventNotes(selectedEventId);
+        }
+    })
+    .catch(error => console.error('添加备注失败:', error));
+}
+
+function setupEventListeners() {
+    document.getElementById('zoomIn').onclick = () => {
+        if (zoomLevel < 2) {
+            zoomLevel += 0.2;
+            document.getElementById('zoomLevel').textContent = Math.round(zoomLevel * 100) + '%';
+            renderGantt();
+        }
+    };
+    
+    document.getElementById('zoomOut').onclick = () => {
+        if (zoomLevel > 0.4) {
+            zoomLevel -= 0.2;
+            document.getElementById('zoomLevel').textContent = Math.round(zoomLevel * 100) + '%';
+            renderGantt();
+        }
+    };
+    
+    document.getElementById('todayBtn').onclick = () => {
+        currentStartDate = new Date(today);
+        currentStartDate.setDate(today.getDate() - 15);
+        currentEndDate = new Date(today);
+        currentEndDate.setDate(today.getDate() + 45);
+        renderGantt();
+        scrollToToday();
+    };
+    
+    document.getElementById('prevWeek').onclick = () => {
+        currentStartDate.setDate(currentStartDate.getDate() - 7);
+        currentEndDate.setDate(currentEndDate.getDate() - 7);
+        renderGantt();
+    };
+    
+    document.getElementById('nextWeek').onclick = () => {
+        currentStartDate.setDate(currentStartDate.getDate() + 7);
+        currentEndDate.setDate(currentEndDate.getDate() + 7);
+        renderGantt();
+    };
+    
+    document.getElementById('closeModal').onclick = closeEventModal;
+    document.getElementById('addNoteBtn').onclick = addNote;
+    
+    document.getElementById('eventModal').onclick = (e) => {
+        if (e.target.id === 'eventModal') {
+            closeEventModal();
+        }
+    };
+    
+    const chartContainer = document.getElementById('chartContainer');
+    let isDragging = false;
+    let startX, scrollLeft;
+    
+    chartContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.pageX - chartContainer.offsetLeft;
+        scrollLeft = chartContainer.scrollLeft;
+        chartContainer.style.cursor = 'grabbing';
+    });
+    
+    chartContainer.addEventListener('mouseleave', () => {
+        isDragging = false;
+        chartContainer.style.cursor = 'grab';
+    });
+    
+    chartContainer.addEventListener('mouseup', () => {
+        isDragging = false;
+        chartContainer.style.cursor = 'grab';
+    });
+    
+    chartContainer.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - chartContainer.offsetLeft;
+        const walk = (x - startX) * 2;
+        chartContainer.scrollLeft = scrollLeft - walk;
+    });
+    
+    chartContainer.style.cursor = 'grab';
+}
+
+function scrollToToday() {
+    const chartContainer = document.getElementById('chartContainer');
+    const dayWidth = 80 * zoomLevel;
+    const todayOffset = (today - currentStartDate) / (1000 * 60 * 60 * 24);
+    chartContainer.scrollLeft = todayOffset * dayWidth - chartContainer.clientWidth / 2;
+}
+
+document.addEventListener('DOMContentLoaded', initGantt);
+</script>
+{% endblock %}

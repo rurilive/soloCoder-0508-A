@@ -4,6 +4,8 @@ from datetime import datetime
 
 from flask import current_app
 
+from app.models.blockchain import init_blockchain_table
+
 
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(current_app.config['DATABASE_PATH'])
@@ -48,3 +50,5 @@ def init_db() -> None:
     
     conn.commit()
     conn.close()
+    
+    init_blockchain_table()

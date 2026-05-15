@@ -7,6 +7,7 @@ from app.models.database import init_db
 from app.routes.calendar import calendar_bp
 from app.routes.events import events_bp
 from app.routes.api import api_bp
+from app.routes.gantt import gantt_bp
 
 def create_app(config: Optional[object] = None) -> Flask:
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,5 +27,6 @@ def create_app(config: Optional[object] = None) -> Flask:
     app.register_blueprint(calendar_bp)
     app.register_blueprint(events_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(gantt_bp)
     
     return app
