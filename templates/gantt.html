@@ -71,7 +71,7 @@ function loadEvents() {
     const startStr = formatDate(currentStartDate);
     const endStr = formatDate(currentEndDate);
     
-    fetch(`/api/gantt/events?start_date=${startStr}&end_date=${endStr}`)
+    fetch('/api/gantt/events?start_date=' + startStr + '&end_date=' + endStr)
         .then(response => response.json())
         .then(data => {
             events = data.events;
@@ -84,7 +84,7 @@ function formatDate(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return year + '-' + month + '-' + day;
 }
 
 function renderGantt() {
@@ -133,10 +133,11 @@ function renderTimeline() {
         monthDayCount++;
         
         const dayCell = document.createElement('div');
-        dayCell.className = `day-header ${isToday ? 'today' : ''} ${isWeekend ? 'weekend' : ''}`;
-        dayCell.style.width = `${dayWidth}px`;
-        dayCell.innerHTML = `<span class="day-name">${['日', '一', '二', '三', '四', '五', '六')[currentDate.getDay()]}</span>
-            <span class="day-number">${currentDate.getDate()}</span>`;
+        dayCell.className = 'day-header ' + (isToday ? 'today ' : '') + (isWeekend ? 'weekend' : '');
+        dayCell.style.width = dayWidth + 'px';
+        const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+        dayCell.innerHTML = '<span class="day-name">' + dayNames[currentDate.getDay()] + '</span>' +
+            '<span class="day-number">' + currentDate.getDate() + '</span>';
         dayHeaders.appendChild(dayCell);
         
         currentDate.setDate(currentDate.getDate() + 1);
@@ -163,10 +164,8 @@ function renderSidebar() {
         const item = document.createElement('div');
         item.className = 'sidebar-item';
         item.style.borderLeftColor = colors[index % colors.length];
-        item.innerHTML = `
-            <div class="event-title">${event.title}</div>
-            <div class="event-date">${event.start} ~ ${event.end}</div>
-        `;
+        item.innerHTML = '<div class="event-title">' + event.title + '</div>' +
+            '<div class="event-date">' + event.start + ' ~ ' + event.end + '</div>';
         item.onclick = () => openEventModal(event.id);
         sidebar.appendChild(item);
     });
@@ -179,7 +178,7 @@ function renderChart() {
     const dayWidth = 80 * zoomLevel;
     const totalDays = Math.ceil((currentEndDate - currentStartDate) / (1000 * 60 * 60 * 24)) + 1;
     
-    chart.style.width = `${totalDays * dayWidth}px`;
+    chart.style.width = (totalDays * dayWidth) + 'px';
     
     if (events.length === 0) {
         chart.innerHTML = '<div class="no-events-chart">暂无事件，请添加新事件</div>';
@@ -196,11 +195,11 @@ function renderChart() {
         const duration = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
         
         const bar = document.createElement('div');
-        bar.className = `gantt-bar ${event.is_completed ? 'completed' : ''}`;
+        bar.className = 'gantt-bar ' + (event.is_completed ? 'completed' : '');
         bar.style.backgroundColor = colors[index % colors.length];
-        bar.style.left = `${startOffset * dayWidth}px`;
-        bar.style.width = `${duration * dayWidth - 4}px`;
-        bar.innerHTML = `<span class="bar-title">${event.title}</span>`;
+        bar.style.left = (startOffset * dayWidth) + 'px';
+        bar.style.width = (duration * dayWidth - 4) + 'px';
+        bar.innerHTML = '<span class="bar-title">' + event.title + '</span>';
         bar.onclick = () => openEventModal(event.id);
         
         row.appendChild(bar);
@@ -210,7 +209,7 @@ function renderChart() {
     const todayLine = document.createElement('div');
     todayLine.className = 'today-line';
     const todayOffset = (today - currentStartDate) / (1000 * 60 * 60 * 24);
-    todayLine.style.left = `${todayOffset * dayWidth + dayWidth / 2}px`;
+    todayLine.style.left = (todayOffset * dayWidth + dayWidth / 2) + 'px';
     chart.appendChild(todayLine);
 }
 
@@ -220,23 +219,11 @@ function openEventModal(eventId) {
     if (!event) return;
     
     const details = document.getElementById('eventDetails');
-    details.innerHTML = `
-        <div class="detail-item">
-            <strong>标题:</strong> ${event.title}
-        </div>
-        <div class="detail-item">
-            <strong>开始日期:</strong> ${event.start}
-        </div>
-        <div class="detail-item">
-            <strong>结束日期:</strong> ${event.end}
-        </div>
-        <div class="detail-item">
-            <strong>描述:</strong> ${event.description || '无'}
-        </div>
-        <div class="detail-item">
-            <strong>状态:</strong> ${event.is_completed ? '已完成' : '进行中'}
-        </div>
-    `;
+    details.innerHTML = '<div class="detail-item"><strong>标题:</strong> ' + event.title + '</div>' +
+        '<div class="detail-item"><strong>开始日期:</strong> ' + event.start + '</div>' +
+        '<div class="detail-item"><strong>结束日期:</strong> ' + event.end + '</div>' +
+        '<div class="detail-item"><strong>描述:</strong> ' + (event.description || '无') + '</div>' +
+        '<div class="detail-item"><strong>状态:</strong> ' + (event.is_completed ? '已完成' : '进行中') + '</div>';
     
     loadEventNotes(eventId);
     document.getElementById('eventModal').style.display = 'flex';
@@ -248,7 +235,7 @@ function closeEventModal() {
 }
 
 function loadEventNotes(eventId) {
-    fetch(`/api/events/${eventId}/notes`)
+    fetch('/api/events/' + eventId + '/notes')
         .then(response => response.json())
         .then(data => {
             const notesList = document.getElementById('notesList');
@@ -262,14 +249,12 @@ function loadEventNotes(eventId) {
             data.notes.forEach(note => {
                 const noteEl = document.createElement('div');
                 noteEl.className = 'note-item';
-                noteEl.innerHTML = `
-                    <div class="note-content">${note.note}</div>
-                    <div class="note-meta">
-                        <span class="note-author">${note.created_by}</span>
-                        <span class="note-time">${new Date(note.created_at).toLocaleString('zh-CN')}</span>
-                        <span class="note-block">区块 #${note.block_index}</span>
-                    </div>
-                `;
+                noteEl.innerHTML = '<div class="note-content">' + note.note + '</div>' +
+                    '<div class="note-meta">' +
+                        '<span class="note-author">' + note.created_by + '</span>' +
+                        '<span class="note-time">' + new Date(note.created_at).toLocaleString('zh-CN') + '</span>' +
+                        '<span class="note-block">区块 #' + note.block_index + '</span>' +
+                    '</div>';
                 notesList.appendChild(noteEl);
             });
         })
@@ -282,7 +267,7 @@ function addNote() {
     
     if (!note || !selectedEventId) return;
     
-    fetch(`/api/events/${selectedEventId}/notes`, {
+    fetch('/api/events/' + selectedEventId + '/notes', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
